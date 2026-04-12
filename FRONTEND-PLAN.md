@@ -2,7 +2,7 @@
 
 ## Context
 
-The SIGAH backend (PLAN.md) defines 14 REST API modules, 16 database tables, and business rules for managing humanitarian aid after the 2026 Monteria flood. This plan defines the complete frontend that consumes that API: every module, every view, every field, and the architecture to tie it together.
+The SIGAH system is a monolith — both backend (Express API) and frontend (React SPA) live in the same repository under `SIGAH/server/` and `SIGAH/client/` respectively. The backend (PLAN.md) defines 14 REST API modules, 16 database tables, and business rules for managing humanitarian aid after the 2026 Monteria flood. This plan defines the complete frontend that consumes that API: every module, every view, every field, and the architecture to tie it together. In production, Express serves both the API (`/api/v1`) and the compiled React app. In development, Vite proxies API requests to Express.
 
 ---
 
@@ -454,20 +454,18 @@ Total: **32 routes**, **30 page components**
 
 ---
 
-## 8. Project Structure
+## 8. Project Structure (inside `SIGAH/client/`)
+
+> This frontend lives at `SIGAH/client/` within the monolith. See PLAN.md for the full project structure. In development, Vite proxies `/api` requests to the Express backend at `localhost:3000`. In production, Express serves the compiled `client/dist/` as static files.
 
 ```
-sigah-frontend/
+client/
 ├── index.html
 ├── package.json
 ├── tsconfig.json                     # TypeScript config (strict mode)
+├── tsconfig.app.json                 # TS config for app source
 ├── tsconfig.node.json                # TS config for Vite/Node files
-├── vite.config.ts
-├── tailwind.config.ts
-├── postcss.config.js
-├── .env                              # VITE_API_URL=http://localhost:3000/api/v1
-├── .env.example
-├── .gitignore
+├── vite.config.ts                    # Vite + Tailwind plugin + /api proxy to server
 ├── public/
 │   ├── favicon.ico
 │   ├── logo.svg
@@ -493,7 +491,7 @@ sigah-frontend/
 │   │   └── api.types.ts              # PaginatedResponse<T>, ApiError
 │   │
 │   ├── api/                          # Axios setup + per-module API functions
-│   │   ├── axios.ts                  # Instance with JWT interceptor + 401 handler
+│   │   ├── axios.ts                  # Instance with JWT interceptor + 401 handler (baseURL: /api/v1)
 │   │   ├── auth.api.ts
 │   │   ├── families.api.ts
 │   │   ├── persons.api.ts
@@ -580,36 +578,43 @@ sigah-frontend/
 │       └── leafletSetup.ts           # Fix Leaflet icon issue with Vite
 ```
 
+### API Base URL
+
+Since the frontend is part of the monolith, Axios uses a relative `baseURL: '/api/v1'` — no `VITE_API_URL` environment variable needed. In development, Vite proxies `/api` to Express. In production, both are served from the same origin.
+
 ---
 
 ## 9. Implementation Order
 
-| Step | What | Depends on |
-|------|------|-----------|
-| 1 | Project scaffolding: Vite + React + Tailwind + folder structure + .env | — |
-| 2 | Shared UI components: DataTable, KpiCard, StatusBadge, ProgressBar, FormField, SelectField, ConfirmDialog | Step 1 |
-| 3 | Layout: AppLayout, Sidebar, Navbar, routing with ProtectedRoute | Step 1 |
-| 4 | Auth: Axios setup, AuthContext, LoginPage, RoleBoundary, UsersPage | Steps 2-3 |
-| 5 | Zones + Shelters: list, CRUD forms, zone detail with tabs | Step 4 |
-| 6 | Families + Persons: list, form with MapPicker, detail with tabs, person search | Steps 4-5 |
-| 7 | Warehouses + Inventory: CRUD, warehouse detail, resource types, summary, alerts | Step 4 |
-| 8 | Donors + Donations: donor CRUD, donation form with dynamic item rows | Step 7 |
-| 9 | Deliveries: multi-step form, batch, list, detail, priority ranking | Steps 6-7 |
-| 10 | Map: Leaflet setup, layers, clustering, popups | Steps 5-7 |
-| 11 | Dashboard: KPI cards, Recharts, recent deliveries table | Steps 6-9 |
-| 12 | Reports: 5 report pages with charts and tables | Step 11 |
-| 13 | Health Vectors + Relocations: CRUD pages | Step 4 |
-| 14 | Polish: responsive testing, error boundaries, loading/empty states | All |
+> The frontend scaffolding (Step 1) is done as part of the monolith initialization (backend PLAN.md Step 1). The backend API for each module must exist before implementing its frontend views.
+
+| Step | What | Depends on (backend) | Depends on (frontend) |
+|------|------|---------------------|----------------------|
+| 1 | Scaffolding already done (Vite + React + Tailwind + folder structure + proxy) | Backend Step 1 | — |
+| 2 | Shared UI components: DataTable, KpiCard, StatusBadge, ProgressBar, FormField, SelectField, ConfirmDialog | — | Step 1 |
+| 3 | Layout: AppLayout, Sidebar, Navbar, routing with ProtectedRoute | — | Step 1 |
+| 4 | Auth: Axios setup (`baseURL: '/api/v1'`), AuthContext, LoginPage, RoleBoundary, UsersPage | Backend Step 3 | Steps 2-3 |
+| 5 | Zones + Shelters: list, CRUD forms, zone detail with tabs | Backend Step 4 | Step 4 |
+| 6 | Families + Persons: list, form with MapPicker, detail with tabs, person search | Backend Step 5 | Steps 4-5 |
+| 7 | Warehouses + Inventory: CRUD, warehouse detail, resource types, summary, alerts | Backend Step 6 | Step 4 |
+| 8 | Donors + Donations: donor CRUD, donation form with dynamic item rows | Backend Step 7 | Step 7 |
+| 9 | Deliveries: multi-step form, batch, list, detail, priority ranking | Backend Steps 8-9 | Steps 6-7 |
+| 10 | Map: Leaflet setup, layers, clustering, popups | Backend Step 11 | Steps 5-7 |
+| 11 | Dashboard: KPI cards, Recharts, recent deliveries table | Backend Step 11 | Steps 6-9 |
+| 12 | Reports: 5 report pages with charts and tables | Backend Step 11 | Step 11 |
+| 13 | Health Vectors + Relocations: CRUD pages | Backend Step 10 | Step 4 |
+| 14 | Polish: responsive testing, error boundaries, loading/empty states | All | All |
 
 ---
 
 ## 10. Verification
 
-1. **Dev server**: `npm run dev` — app loads at `localhost:5173`, login page renders
-2. **Auth flow**: login with valid credentials → redirected to dashboard; invalid → error toast; expired token → redirected to login
-3. **CRUD smoke test**: for each module, create an entity, see it in the list, edit it, delete it
-4. **Delivery flow**: create family → check eligibility → select warehouse → add items → verify coverage >= 3 days → confirm → inventory decremented → priority recalculated
-5. **Map**: all layers toggle on/off, markers display with correct popups, family markers cluster at zoom out
-6. **Reports**: each report renders charts and tables with real data
-7. **Responsive**: test at 1440px, 768px, and 375px widths — sidebar collapses, tables scroll, cards stack
-8. **Role access**: login as viewer → action buttons hidden; login as admin → all actions visible
+1. **Dev mode**: `npm run dev` from `SIGAH/` root — starts both Express (port 3000) and Vite (port 5173) concurrently. Frontend at `localhost:5173` proxies `/api` to Express.
+2. **Production build**: `npm run build` from root — compiles frontend to `client/dist/`. Then `npm start` — Express serves both API and frontend from port 3000.
+3. **Auth flow**: login with valid credentials → redirected to dashboard; invalid → error toast; expired token → redirected to login
+4. **CRUD smoke test**: for each module, create an entity, see it in the list, edit it, delete it
+5. **Delivery flow**: create family → check eligibility → select warehouse → add items → verify coverage >= 3 days → confirm → inventory decremented → priority recalculated
+6. **Map**: all layers toggle on/off, markers display with correct popups, family markers cluster at zoom out
+7. **Reports**: each report renders charts and tables with real data
+8. **Responsive**: test at 1440px, 768px, and 375px widths — sidebar collapses, tables scroll, cards stack
+9. **Role access**: login as viewer → action buttons hidden; login as admin → all actions visible
