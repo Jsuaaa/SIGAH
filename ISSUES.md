@@ -6,39 +6,46 @@
 
 ## Step 1: Project Initialization
 
-### Issue #1 — Project scaffolding and dependency installation
+### Issue #1 — Project scaffolding and dependency installation (monolith)
 **Labels**: `setup`, `priority: critical`, `step-1`
-**Description**: Initialize the Node.js project with `npm init`, install all production and dev dependencies, and create the full folder structure as defined in the plan.
+**Description**: Initialize the monolith project structure with `server/` (Express backend) and `client/` (React frontend) subdirectories. Create root `package.json` with orchestration scripts (`dev`, `build`, `start`, `test`). Initialize backend with `npm init` and install all production and dev dependencies. Scaffold frontend with Vite + React + TypeScript, install all frontend dependencies, configure Vite proxy to Express.
 
-**Dependencies**: (production) express, @prisma/client, bcrypt, jsonwebtoken, express-validator, cors, helmet, morgan, dotenv — (dev) prisma, jest, supertest
+**Backend Dependencies**: (production) express, @prisma/client, bcrypt, jsonwebtoken, express-validator, cors, helmet, morgan, dotenv — (dev) prisma, jest, supertest, nodemon
+**Frontend Dependencies**: react-router-dom, @tanstack/react-query, @tanstack/react-form, @tanstack/zod-form-adapter, @tanstack/react-table, zod, @headlessui/react, tailwindcss, @tailwindcss/vite, recharts, react-leaflet, leaflet, axios, lucide-react, sonner, date-fns — (dev) @types/leaflet
+**Root Dependencies**: (dev) concurrently
 
 **Acceptance Criteria**:
-- [ ] `package.json` exists with all dependencies and scripts (`start`, `dev`, `test`)
-- [ ] `node_modules/` installed without errors
-- [ ] Folder structure created: `src/{config,routes,controllers,services,middlewares,validators,utils}`, `prisma/`, `tests/{unit,integration}`
+- [ ] Root `package.json` exists with `dev`, `build`, `start`, `test`, `install:all` scripts
+- [ ] `server/package.json` exists with all backend dependencies and scripts
+- [ ] `client/package.json` exists with all frontend dependencies
+- [ ] Both `node_modules/` installed without errors
+- [ ] Backend folder structure created: `server/src/{config,routes,controllers,services,middlewares,validators,utils}`, `server/prisma/`, `server/tests/{unit,integration}`
+- [ ] Frontend folder structure created: `client/src/{types,api,hooks,context,schemas,components/{layout,ui,form,map,auth},pages/{auth,dashboard,families,persons,zones,shelters,warehouses,inventory,donors,donations,deliveries,reports,health,relocations,users,map},utils,lib}`
+- [ ] Vite proxy configured to forward `/api` to Express at `localhost:3000`
+- [ ] `npm run build` (from root) compiles frontend successfully
 
 ---
 
 ### Issue #2 — Environment and git configuration
 **Labels**: `setup`, `priority: critical`, `step-1`
-**Description**: Create `.env.example` with all required environment variables (DATABASE_URL, JWT_SECRET, PORT, NODE_ENV), `.env` for local development, and `.gitignore` to exclude `node_modules`, `.env`, and Prisma generated files.
+**Description**: Create `server/.env.example` with all required environment variables (DATABASE_URL, JWT_SECRET, PORT, NODE_ENV), `server/.env` for local development, and root `.gitignore` to exclude `node_modules/`, `.env`, Prisma generated files, and `client/dist/`.
 
 **Acceptance Criteria**:
-- [ ] `.env.example` documents all required variables
-- [ ] `.gitignore` covers `node_modules/`, `.env`, `prisma/*.db`
+- [ ] `server/.env.example` documents all required variables
+- [ ] `.gitignore` covers `node_modules/`, `.env`, `server/prisma/*.db`, `client/dist/`
 - [ ] Git repository initialized with initial commit
 
 ---
 
 ### Issue #3 — Prisma initialization and config modules
 **Labels**: `setup`, `database`, `priority: critical`, `step-1`
-**Description**: Run `npx prisma init` to generate `prisma/schema.prisma` with PostgreSQL datasource. Create config modules: `src/config/env.js` (loads and validates env vars), `src/config/prisma.js` (PrismaClient singleton), `src/config/constants.js` (business constants like MIN_COVERAGE_DAYS=3, KG_PER_PERSON_PER_DAY=0.6, MAX_DAYS_WITHOUT_AID=30, risk factors).
+**Description**: Run `npx prisma init` inside `server/` to generate `server/prisma/schema.prisma` with PostgreSQL datasource. Create config modules: `server/src/config/env.js` (loads and validates env vars), `server/src/config/prisma.js` (PrismaClient singleton), `server/src/config/constants.js` (business constants like MIN_COVERAGE_DAYS=3, KG_PER_PERSON_PER_DAY=0.6, MAX_DAYS_WITHOUT_AID=30, risk factors).
 
 **Acceptance Criteria**:
-- [ ] `prisma/schema.prisma` exists with `postgresql` provider and `env("DATABASE_URL")`
-- [ ] `src/config/prisma.js` exports a singleton PrismaClient instance
-- [ ] `src/config/env.js` validates required env vars on startup
-- [ ] `src/config/constants.js` exports all business constants from the plan
+- [ ] `server/prisma/schema.prisma` exists with `postgresql` provider and `env("DATABASE_URL")`
+- [ ] `server/src/config/prisma.js` exports a singleton PrismaClient instance
+- [ ] `server/src/config/env.js` validates required env vars on startup
+- [ ] `server/src/config/constants.js` exports all business constants from the plan
 
 ---
 
@@ -47,37 +54,38 @@
 ### Issue #4 — Express application setup (app.js)
 **Labels**: `infrastructure`, `priority: critical`, `step-2`
 **Depends on**: #1, #2
-**Description**: Create `src/app.js` with Express configuration including global middlewares: `cors()`, `helmet()`, `morgan('dev')`, `express.json()`. Mount a base health-check route at `GET /api/v1/health`. Export the app instance.
+**Description**: Create `server/src/app.js` with Express configuration including global middlewares: `cors()`, `helmet()`, `morgan('dev')`, `express.json()`. Mount a base health-check route at `GET /api/v1/health`. In production, serve `client/dist/` as static files and handle SPA fallback. Export the app instance.
 
 **Acceptance Criteria**:
-- [ ] `src/app.js` exports configured Express app
+- [ ] `server/src/app.js` exports configured Express app
 - [ ] All global middlewares applied (cors, helmet, morgan, json parser)
 - [ ] `GET /api/v1/health` returns `{ status: "ok" }`
 - [ ] API prefix is `/api/v1`
+- [ ] In production, serves `client/dist/` static files with SPA fallback
 
 ---
 
 ### Issue #5 — Server entry point (index.js)
 **Labels**: `infrastructure`, `priority: critical`, `step-2`
 **Depends on**: #3, #4
-**Description**: Create `src/index.js` that connects to the database via `prisma.$connect()` before starting the Express server. Handle connection errors gracefully. Log the port and environment on startup.
+**Description**: Create `server/src/index.js` that connects to the database via `prisma.$connect()` before starting the Express server. Handle connection errors gracefully. Log the port and environment on startup.
 
 **Acceptance Criteria**:
 - [ ] Server starts only after successful database connection
 - [ ] Startup logs show port and NODE_ENV
 - [ ] Connection errors are caught and logged before process exit
-- [ ] `npm run dev` starts the server successfully
+- [ ] `npm run dev:server` (from root) starts the server successfully
 
 ---
 
 ### Issue #6 — Utilities and global error handling
 **Labels**: `infrastructure`, `priority: critical`, `step-2`
 **Description**: Implement core utilities and middlewares:
-- `src/utils/AppError.js` — Custom error class with statusCode and isOperational flag
-- `src/utils/asyncHandler.js` — Wraps async route handlers to catch errors
-- `src/utils/pagination.js` — Parses `page` and `limit` query params, returns `skip`/`take` for Prisma and pagination metadata
-- `src/middlewares/errorHandler.middleware.js` — Global error handler that formats AppError and unexpected errors
-- `src/middlewares/validate.middleware.js` — Runs express-validator checks and returns 400 with formatted errors
+- `server/src/utils/AppError.js` — Custom error class with statusCode and isOperational flag
+- `server/src/utils/asyncHandler.js` — Wraps async route handlers to catch errors
+- `server/src/utils/pagination.js` — Parses `page` and `limit` query params, returns `skip`/`take` for Prisma and pagination metadata
+- `server/src/middlewares/errorHandler.middleware.js` — Global error handler that formats AppError and unexpected errors
+- `server/src/middlewares/validate.middleware.js` — Runs express-validator checks and returns 400 with formatted errors
 
 **Acceptance Criteria**:
 - [ ] `AppError` supports custom status codes and error messages
@@ -106,10 +114,10 @@
 **Labels**: `auth`, `priority: critical`, `step-3`
 **Depends on**: #6, #7
 **Description**: Implement the authentication module:
-- `src/services/auth.service.js` — register (hash password with bcrypt, create user), login (verify credentials, generate JWT with 8h expiry, payload: { id, email, role }), getProfile, changePassword
-- `src/controllers/auth.controller.js` — handle HTTP layer
-- `src/routes/auth.routes.js` — POST `/login` (public), POST `/register` (admin only), GET `/me`, PUT `/change-password`
-- `src/validators/auth.validator.js` — email format, password min length, role enum
+- `server/src/services/auth.service.js` — register (hash password with bcrypt, create user), login (verify credentials, generate JWT with 8h expiry, payload: { id, email, role }), getProfile, changePassword
+- `server/src/controllers/auth.controller.js` — handle HTTP layer
+- `server/src/routes/auth.routes.js` — POST `/login` (public), POST `/register` (admin only), GET `/me`, PUT `/change-password`
+- `server/src/validators/auth.validator.js` — email format, password min length, role enum
 
 **Acceptance Criteria**:
 - [ ] Register creates user with hashed password (bcrypt)
@@ -125,9 +133,9 @@
 **Labels**: `auth`, `middleware`, `priority: critical`, `step-3`
 **Depends on**: #8
 **Description**: Implement:
-- `src/middlewares/auth.middleware.js` — Extracts and verifies JWT from `Authorization: Bearer <token>`, attaches user to `req.user`
-- `src/middlewares/role.middleware.js` — Factory function `authorize(...roles)` that checks `req.user.role` against allowed roles
-- `prisma/seed.js` — Seeds initial admin user (email from env or default)
+- `server/src/middlewares/auth.middleware.js` — Extracts and verifies JWT from `Authorization: Bearer <token>`, attaches user to `req.user`
+- `server/src/middlewares/role.middleware.js` — Factory function `authorize(...roles)` that checks `req.user.role` against allowed roles
+- `server/prisma/seed.js` — Seeds initial admin user (email from env or default)
 - Add `"prisma": { "seed": "node prisma/seed.js" }` to package.json
 
 **Acceptance Criteria**:
@@ -297,7 +305,7 @@
 ### Issue #20 — Prioritization scoring service
 **Labels**: `feature`, `algorithm`, `priority: high`, `step-8`
 **Depends on**: #12
-**Description**: Implement `src/services/prioritization.service.js` with the scoring formula:
+**Description**: Implement `server/src/services/prioritization.service.js` with the scoring formula:
 ```
 score = (2 * num_members) + (5 * children_under_5) + (4 * adults_over_65) + (5 * pregnant) + (4 * disabled) + (3 * zone_risk_factor) + (1.5 * days_without_aid) - (2 * deliveries_received)
 ```
@@ -476,14 +484,14 @@ Also implement `POST /deliveries/batch` — accepts count N, fetches top N prior
 **Labels**: `testing`, `step-12`
 **Depends on**: #20, #23, #24
 **Description**: Write tests:
-- **Unit tests** (`tests/unit/`):
+- **Unit tests** (`server/tests/unit/`):
   - `prioritization.test.js` — Score calculation with various family compositions
   - `delivery.test.js` — Eligibility checks, ration calculations
   - `inventory.test.js` — Capacity validation, weight calculations
-- **Integration tests** (`tests/integration/`):
+- **Integration tests** (`server/tests/integration/`):
   - `auth.test.js` — Register, login, token validation, role protection
   - `delivery-flow.test.js` — End-to-end: create donation -> verify inventory -> create delivery -> verify stock decremented -> verify priority recalculated -> attempt duplicate (should fail)
-- `prisma/seed.js` — Enhance seed with comprehensive test/demo data including families, donors, resource types, and sample deliveries (using real Monteria coordinates)
+- `server/prisma/seed.js` — Enhance seed with comprehensive test/demo data including families, donors, resource types, and sample deliveries (using real Monteria coordinates)
 
 **Acceptance Criteria**:
 - [ ] `npm test` runs all tests successfully

@@ -4,7 +4,9 @@
 
 The 2026 flood in Monteria displaced ~10,000 people. A backend system is needed to register affected families, manage aid inventory (20,000 kg warehouse capacity), track donations by source (city hall, state government, private companies, citizens), distribute aid prioritizing vulnerable families, and prevent duplicate deliveries. The system must guarantee a minimum of 3 days of coverage per delivery and maintain full transparency. All entities with a physical location (shelters, warehouses, families) include geographic coordinates for map visualization.
 
-**Stack**: Node.js + Express | PostgreSQL | Prisma (ORM) | JWT auth | Monolithic REST API
+**Stack**: Node.js + Express | PostgreSQL | Prisma (ORM) | JWT auth | React + TypeScript + Vite (frontend) | Monolith (single service)
+
+**Architecture**: Monolithic — the Express server serves both the REST API (`/api/v1`) and the compiled React frontend (static files from `client/dist/`). In development, Vite's dev server proxies API requests to Express.
 
 ---
 
@@ -121,42 +123,85 @@ Recalculated: on delivery creation, on family composition change, and on demand.
 
 ---
 
-## Project Structure
+## Project Structure (Monolith)
 
 ```
-sigah-backend/
-├── package.json
-├── .env / .env.example / .gitignore
-├── prisma/
-│   ├── schema.prisma                     # Full DB schema
-│   ├── migrations/                       # Prisma-generated migrations
-│   └── seed.js                           # Initial data
-├── src/
-│   ├── index.js                          # Entry point
-│   ├── app.js                            # Express config
-│   ├── config/
-│   │   ├── prisma.js                     # PrismaClient instance (singleton)
-│   │   ├── env.js                        # Environment variables
-│   │   └── constants.js                  # Business constants
-│   ├── routes/                           # 14 route files
-│   ├── controllers/                      # 14 controllers
-│   ├── services/                         # 14 services (business logic, use Prisma Client directly)
-│   ├── middlewares/
-│   │   ├── auth.middleware.js            # JWT verification
-│   │   ├── role.middleware.js            # Role-based access control
-│   │   ├── validate.middleware.js        # express-validator
-│   │   └── errorHandler.middleware.js    # Global error handler
-│   ├── validators/                       # Per-module validations
-│   └── utils/
-│       ├── AppError.js
-│       ├── asyncHandler.js
-│       └── pagination.js
-└── tests/
-    ├── unit/                             # Service tests
-    └── integration/                      # Tests with supertest
+SIGAH/
+├── package.json                          # Root: orchestration scripts (dev, build, start)
+├── .gitignore
+│
+├── server/                               # Express backend
+│   ├── package.json                      # Backend dependencies and scripts
+│   ├── .env / .env.example
+│   ├── prisma/
+│   │   ├── schema.prisma                 # Full DB schema
+│   │   ├── migrations/                   # Prisma-generated migrations
+│   │   └── seed.js                       # Initial data
+│   ├── src/
+│   │   ├── index.js                      # Entry point (serves API + client/dist in production)
+│   │   ├── app.js                        # Express config
+│   │   ├── config/
+│   │   │   ├── prisma.js                 # PrismaClient instance (singleton)
+│   │   │   ├── env.js                    # Environment variables
+│   │   │   └── constants.js              # Business constants
+│   │   ├── routes/                       # 14 route files
+│   │   ├── controllers/                  # 14 controllers
+│   │   ├── services/                     # 14 services (business logic, use Prisma Client directly)
+│   │   ├── middlewares/
+│   │   │   ├── auth.middleware.js        # JWT verification
+│   │   │   ├── role.middleware.js        # Role-based access control
+│   │   │   ├── validate.middleware.js    # express-validator
+│   │   │   └── errorHandler.middleware.js# Global error handler
+│   │   ├── validators/                   # Per-module validations
+│   │   └── utils/
+│   │       ├── AppError.js
+│   │       ├── asyncHandler.js
+│   │       └── pagination.js
+│   └── tests/
+│       ├── unit/                         # Service tests
+│       └── integration/                  # Tests with supertest
+│
+└── client/                               # React frontend (see FRONTEND-PLAN.md)
+    ├── package.json                      # Frontend dependencies and scripts
+    ├── vite.config.ts                    # Vite config with API proxy to server
+    ├── index.html
+    ├── public/
+    └── src/                              # React application source
 ```
 
 > **Note**: There is no repository layer. Prisma Client acts as both ORM and data access layer. Services interact with `prisma` directly, using `prisma.$transaction()` for atomic operations.
+
+### Monolith Scripts (root package.json)
+
+| Script | Command | Description |
+|--------|---------|-------------|
+| `npm run dev` | `concurrently` server + client | Development: Express API (port 3000) + Vite HMR (port 5173) |
+| `npm run build` | `npm --prefix client run build` | Build React app to `client/dist/` |
+| `npm start` | `npm --prefix server run start` | Production: Express serves API + `client/dist/` |
+| `npm test` | `npm --prefix server run test` | Run backend tests |
+| `npm run install:all` | install server + client | Install all dependencies |
+
+### Production Serving
+
+In production, `server/src/index.js` serves the compiled frontend:
+```js
+// After API routes
+app.use(express.static(path.join(__dirname, '../../client/dist')));
+app.get('*', (req, res) => {
+  res.sendFile(path.join(__dirname, '../../client/dist/index.html'));
+});
+```
+
+### Development Proxy
+
+In development, `client/vite.config.ts` proxies API calls to Express:
+```ts
+server: {
+  proxy: {
+    '/api': { target: 'http://localhost:3000', changeOrigin: true }
+  }
+}
+```
 
 ---
 
@@ -179,16 +224,18 @@ sigah-backend/
 ## Implementation Plan (12 steps)
 
 ### Step 1: Project initialization
-- `npm init`, install dependencies, create folder structure
-- Configure `.env`, `.gitignore`
-- `npx prisma init` - generates `prisma/schema.prisma` with PostgreSQL datasource
-- Create `src/config/env.js`, `src/config/prisma.js` (PrismaClient singleton), `src/config/constants.js`
+- Create monolith structure: root `package.json`, `server/`, `client/`
+- `npm init` in `server/`, install backend dependencies, create `server/src/` folder structure
+- Scaffold `client/` with Vite + React + TypeScript, install frontend dependencies
+- Configure `.env`, `.gitignore`, Vite proxy
+- `npx prisma init` in `server/` - generates `server/prisma/schema.prisma` with PostgreSQL datasource
+- Create `server/src/config/env.js`, `server/src/config/prisma.js` (PrismaClient singleton), `server/src/config/constants.js`
 
 ### Step 2: Base infrastructure
-- `src/app.js` - Express config with global middlewares (cors, helmet, morgan, json parser)
-- `src/index.js` - server startup with `prisma.$connect()` beforehand
-- `src/utils/AppError.js`, `asyncHandler.js`, `pagination.js`
-- `src/middlewares/errorHandler.middleware.js`, `validate.middleware.js`
+- `server/src/app.js` - Express config with global middlewares (cors, helmet, morgan, json parser) + static file serving for `client/dist/` in production
+- `server/src/index.js` - server startup with `prisma.$connect()` beforehand
+- `server/src/utils/AppError.js`, `asyncHandler.js`, `pagination.js`
+- `server/src/middlewares/errorHandler.middleware.js`, `validate.middleware.js`
 
 ### Step 3: Authentication module
 - Define `User` model in schema.prisma
@@ -263,6 +310,9 @@ sigah-backend/
 
 ## Verification
 
-1. **Unit tests**: `npm test` - prioritization calculates correctly, deliveries validate eligibility and stock
+1. **Unit tests**: `npm test` (from root) - prioritization calculates correctly, deliveries validate eligibility and stock
 2. **Integration tests**: Complete auth flow, donation -> warehouse -> inventory -> delivery -> priority recalculated
-3. **Manual**: Create families, register donations, execute deliveries, verify reports, attempt duplicates (should fail), attempt exceeding warehouse capacity (should fail), verify coordinates in map endpoints
+3. **Build**: `npm run build` (from root) - compiles React frontend to `client/dist/`
+4. **Production mode**: `npm start` - Express serves API at `/api/v1` and frontend at `/`
+5. **Development mode**: `npm run dev` - runs both Vite (port 5173) and Express (port 3000) concurrently
+6. **Manual**: Create families, register donations, execute deliveries, verify reports, attempt duplicates (should fail), attempt exceeding warehouse capacity (should fail), verify coordinates in map endpoints
