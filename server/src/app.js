@@ -5,6 +5,7 @@ const morgan = require('morgan');
 const path = require('path');
 const { NODE_ENV } = require('./config/env');
 const errorHandler = require('./middlewares/errorHandler.middleware');
+const authRoutes = require('./routes/auth.routes');
 
 const app = express();
 
@@ -18,6 +19,9 @@ app.use(express.json());
 app.get('/api/v1/health', (req, res) => {
   res.json({ status: 'ok' });
 });
+
+// API routes
+app.use('/api/v1/auth', authRoutes);
 
 // Global error handler (must be after all routes)
 app.use(errorHandler);
