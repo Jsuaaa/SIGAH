@@ -1,0 +1,56 @@
+// Delivery constraints
+const MIN_COVERAGE_DAYS = 3;
+const KG_PER_PERSON_PER_DAY = 0.6;
+
+// Prioritization
+const MAX_DAYS_WITHOUT_AID = 30;
+
+const ZONE_RISK_FACTORS = {
+  LOW: 1,
+  MEDIUM: 2,
+  HIGH: 3,
+  CRITICAL: 4,
+};
+
+const PRIORITY_WEIGHTS = {
+  NUM_MEMBERS: 2,
+  CHILDREN_UNDER_5: 5,
+  ADULTS_OVER_65: 4,
+  PREGNANT: 5,
+  DISABLED: 4,
+  ZONE_RISK: 3,
+  DAYS_WITHOUT_AID: 1.5,
+  DELIVERIES_RECEIVED: -2,
+};
+
+// Authentication
+const JWT_EXPIRATION = '8h';
+
+// Sequential code prefixes
+const CODE_PREFIXES = {
+  FAMILY: 'FAM',
+  DONATION: 'DON',
+  DELIVERY: 'DEL',
+};
+
+// Inventory alerts
+const WAREHOUSE_CAPACITY_ALERT_THRESHOLD = 0.9;
+const EXPIRATION_ALERT_DAYS = 7;
+
+// Pagination defaults
+const DEFAULT_PAGE = 1;
+const DEFAULT_LIMIT = 20;
+
+module.exports = {
+  MIN_COVERAGE_DAYS,
+  KG_PER_PERSON_PER_DAY,
+  MAX_DAYS_WITHOUT_AID,
+  ZONE_RISK_FACTORS,
+  PRIORITY_WEIGHTS,
+  JWT_EXPIRATION,
+  CODE_PREFIXES,
+  WAREHOUSE_CAPACITY_ALERT_THRESHOLD,
+  EXPIRATION_ALERT_DAYS,
+  DEFAULT_PAGE,
+  DEFAULT_LIMIT,
+};
