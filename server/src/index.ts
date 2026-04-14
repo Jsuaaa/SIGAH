@@ -1,6 +1,6 @@
-const { PORT, NODE_ENV } = require('./config/env');
-const prisma = require('./config/prisma');
-const app = require('./app');
+import { PORT, NODE_ENV } from './config/env';
+import prisma from './config/prisma';
+import app from './app';
 
 async function main() {
   try {
@@ -11,7 +11,7 @@ async function main() {
       console.log(`Server running on port ${PORT} [${NODE_ENV}]`);
     });
   } catch (error) {
-    console.error('Failed to start server:', error.message);
+    console.error('Failed to start server:', (error as Error).message);
     process.exit(1);
   }
 }

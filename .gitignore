@@ -10,6 +10,7 @@ node_modules/
 
 # Build output
 client/dist/
+server/dist/
 
 # Prisma (SQLite dev files)
 server/prisma/*.db

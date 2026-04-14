@@ -1,11 +1,11 @@
-const express = require('express');
-const cors = require('cors');
-const helmet = require('helmet');
-const morgan = require('morgan');
-const path = require('path');
-const { NODE_ENV } = require('./config/env');
-const errorHandler = require('./middlewares/errorHandler.middleware');
-const authRoutes = require('./routes/auth.routes');
+import express from 'express';
+import cors from 'cors';
+import helmet from 'helmet';
+import morgan from 'morgan';
+import path from 'path';
+import { NODE_ENV } from './config/env';
+import { errorHandler } from './middlewares/errorHandler.middleware';
+import authRoutes from './routes/auth.routes';
 
 const app = express();
 
@@ -16,7 +16,7 @@ app.use(morgan('dev'));
 app.use(express.json());
 
 // Health check
-app.get('/api/v1/health', (req, res) => {
+app.get('/api/v1/health', (_req, res) => {
   res.json({ status: 'ok' });
 });
 
@@ -30,9 +30,9 @@ app.use(errorHandler);
 if (NODE_ENV === 'production') {
   app.use(express.static(path.join(__dirname, '../../client/dist')));
 
-  app.get('*', (req, res) => {
+  app.get('*', (_req, res) => {
     res.sendFile(path.join(__dirname, '../../client/dist/index.html'));
   });
 }
 
-module.exports = app;
+export default app;

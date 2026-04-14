@@ -1,7 +1,8 @@
-const { validationResult } = require('express-validator');
+import { Request, Response, NextFunction } from 'express';
+import { ValidationChain, validationResult } from 'express-validator';
 
-function validate(validations) {
-  return async (req, res, next) => {
+export function validate(validations: ValidationChain[]) {
+  return async (req: Request, res: Response, next: NextFunction) => {
     for (const validation of validations) {
       await validation.run(req);
     }
@@ -14,11 +15,9 @@ function validate(validations) {
     res.status(400).json({
       success: false,
       errors: errors.array().map((e) => ({
-        field: e.path,
+        field: 'path' in e ? e.path : 'unknown',
         message: e.msg,
       })),
     });
   };
 }
-
-module.exports = validate;

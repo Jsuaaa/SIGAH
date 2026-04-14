@@ -13,7 +13,7 @@ export default defineConfig({
   migrate: {
     async seed() {
       const { execSync } = await import('node:child_process');
-      execSync('node prisma/seed.js', { stdio: 'inherit' });
+      execSync('npx tsx prisma/seed.ts', { stdio: 'inherit' });
     },
   },
 });

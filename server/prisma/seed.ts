@@ -1,14 +1,13 @@
-const bcrypt = require('bcrypt');
-const { PrismaClient } = require('@prisma/client');
-const { PrismaPg } = require('@prisma/adapter-pg');
-
-const dotenv = require('dotenv');
-const path = require('path');
+import bcrypt from 'bcrypt';
+import { PrismaClient } from '@prisma/client';
+import { PrismaPg } from '@prisma/adapter-pg';
+import dotenv from 'dotenv';
+import path from 'path';
 
 dotenv.config({ path: path.join(__dirname, '../.env') });
 
 const adapter = new PrismaPg({
-  connectionString: process.env.DATABASE_URL,
+  connectionString: process.env.DATABASE_URL!,
 });
 
 const prisma = new PrismaClient({ adapter });
@@ -37,7 +36,7 @@ async function main() {
 }
 
 main()
-  .catch((e) => {
+  .catch((e: Error) => {
     console.error('Seed failed:', e.message);
     process.exit(1);
   })

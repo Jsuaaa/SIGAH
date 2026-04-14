@@ -1,11 +1,28 @@
-const bcrypt = require('bcrypt');
-const jwt = require('jsonwebtoken');
-const prisma = require('../config/prisma');
-const { JWT_SECRET } = require('../config/env');
-const { JWT_EXPIRATION } = require('../config/constants');
-const AppError = require('../utils/AppError');
+import bcrypt from 'bcrypt';
+import jwt from 'jsonwebtoken';
+import { Role } from '@prisma/client';
+import prisma from '../config/prisma';
+import { JWT_SECRET } from '../config/env';
+import { JWT_EXPIRATION } from '../config/constants';
+import { AppError } from '../utils/AppError';
 
-async function register({ email, password, role }) {
+interface RegisterInput {
+  email: string;
+  password: string;
+  role: Role;
+}
+
+interface LoginInput {
+  email: string;
+  password: string;
+}
+
+interface ChangePasswordInput {
+  oldPassword: string;
+  newPassword: string;
+}
+
+export async function register({ email, password, role }: RegisterInput) {
   const existing = await prisma.user.findUnique({ where: { email } });
   if (existing) {
     throw new AppError('Email already registered', 409);
@@ -21,7 +38,7 @@ async function register({ email, password, role }) {
   return user;
 }
 
-async function login({ email, password }) {
+export async function login({ email, password }: LoginInput) {
   const user = await prisma.user.findUnique({ where: { email } });
   if (!user) {
     throw new AppError('Invalid credentials', 401);
@@ -41,7 +58,7 @@ async function login({ email, password }) {
   return { token };
 }
 
-async function getProfile(userId) {
+export async function getProfile(userId: number) {
   const user = await prisma.user.findUnique({
     where: { id: userId },
     select: { id: true, email: true, role: true, created_at: true, updated_at: true },
@@ -54,7 +71,7 @@ async function getProfile(userId) {
   return user;
 }
 
-async function changePassword(userId, { oldPassword, newPassword }) {
+export async function changePassword(userId: number, { oldPassword, newPassword }: ChangePasswordInput) {
   const user = await prisma.user.findUnique({ where: { id: userId } });
   if (!user) {
     throw new AppError('User not found', 404);
@@ -72,5 +89,3 @@ async function changePassword(userId, { oldPassword, newPassword }) {
     data: { password_hash },
   });
 }
-
-module.exports = { register, login, getProfile, changePassword };
