@@ -4,6 +4,7 @@ const helmet = require('helmet');
 const morgan = require('morgan');
 const path = require('path');
 const { NODE_ENV } = require('./config/env');
+const errorHandler = require('./middlewares/errorHandler.middleware');
 
 const app = express();
 
@@ -17,6 +18,9 @@ app.use(express.json());
 app.get('/api/v1/health', (req, res) => {
   res.json({ status: 'ok' });
 });
+
+// Global error handler (must be after all routes)
+app.use(errorHandler);
 
 // In production, serve the compiled React frontend
 if (NODE_ENV === 'production') {
