@@ -1,0 +1,257 @@
+---
+title: SGAH - Diagrama Entidad-Relacion Conceptual (Iteracion 3, Abril 2026)
+config:
+  theme: default
+  themeVariables:
+    fontSize: 14px
+---
+erDiagram
+    USER ||--o{ AUDIT_LOG : "R1 registra"
+    USER ||--o{ DELIVERY : "R2 entrega"
+    USER ||--o{ DELIVERY : "R3 autoriza_excep"
+    USER ||--o{ DISTRIBUTION_PLAN : "R4 crea"
+    USER ||--o{ HEALTH_VECTOR : "R5 reporta"
+    USER ||--o{ RELOCATION : "R6 autoriza"
+    USER ||--o{ PRIVACY_CONSENT : "R7 recoge"
+    USER ||--o{ INVENTORY_ADJUSTMENT : "R8 ajusta"
+    USER ||--o{ SCORING_CONFIG : "R9 configura"
+    USER ||--o{ ALERT_THRESHOLD : "R10 configura_umbral"
+
+    ZONE ||--o{ SHELTER : "R11 contiene"
+    ZONE ||--o{ FAMILY : "R12 ubica"
+    ZONE ||--o{ WAREHOUSE : "R13 alberga"
+    ZONE ||--o{ HEALTH_VECTOR : "R14 localiza"
+
+    SHELTER ||--o{ FAMILY : "R15 aloja"
+    SHELTER ||--o{ HEALTH_VECTOR : "R16 ubica"
+    SHELTER ||--o{ RELOCATION : "R17 origen"
+    SHELTER ||--o{ RELOCATION : "R18 destino"
+
+    FAMILY ||--|{ PERSON : "R19 tiene"
+    FAMILY ||--|| PRIVACY_CONSENT : "R20 otorga"
+    FAMILY ||--o{ DELIVERY : "R21 recibe"
+    FAMILY ||--o{ RELOCATION : "R22 se_traslada"
+    FAMILY ||--o{ DISTRIBUTION_PLAN_ITEM : "R23 asignada"
+
+    WAREHOUSE ||--o{ INVENTORY : "R24 almacena"
+    WAREHOUSE ||--o{ DONATION : "R25 recibe_don"
+    WAREHOUSE ||--o{ DELIVERY : "R26 origina"
+    WAREHOUSE ||--o{ DISTRIBUTION_PLAN_ITEM : "R27 suministra"
+
+    RESOURCE_TYPE ||--o{ INVENTORY : "R28 cuantifica"
+    RESOURCE_TYPE ||--o{ DONATION_DETAIL : "R29 especifica"
+    RESOURCE_TYPE ||--o{ DELIVERY_DETAIL : "R30 despacha"
+    RESOURCE_TYPE ||--o| ALERT_THRESHOLD : "R31 umbral"
+
+    INVENTORY ||--o{ INVENTORY_ADJUSTMENT : "R32 registra_aj"
+
+    DONOR ||--o{ DONATION : "R33 aporta"
+    DONATION ||--o{ DONATION_DETAIL : "R34 desglosa"
+
+    DELIVERY ||--|{ DELIVERY_DETAIL : "R35 detalla"
+    DISTRIBUTION_PLAN ||--|{ DISTRIBUTION_PLAN_ITEM : "R36 compone"
+    DISTRIBUTION_PLAN_ITEM ||--o| DELIVERY : "R37 materializa"
+
+    USER {
+        bigint id PK
+        string email UK
+        string name
+        enum role
+        bool is_active
+        int failed_login_attempts
+        datetime locked_until
+        bool password_must_change
+    }
+    AUDIT_LOG {
+        bigint id PK
+        string action
+        string module
+        bigint entity_id
+        bigint user_id FK
+        jsonb before
+        jsonb after
+        inet ip_address
+        datetime created_at
+    }
+    SCORING_CONFIG {
+        string key PK
+        decimal value
+        bigint updated_by FK
+        datetime updated_at
+    }
+    ALERT_THRESHOLD {
+        bigint id PK
+        bigint resource_type_id FK
+        int min_quantity
+        bigint updated_by FK
+    }
+    ZONE {
+        bigint id PK
+        string name UK
+        enum risk_level
+        decimal latitude
+        decimal longitude
+        int estimated_population
+    }
+    SHELTER {
+        bigint id PK
+        string name
+        bigint zone_id FK
+        enum type
+        int max_capacity
+        int current_occupancy
+        decimal latitude
+        decimal longitude
+    }
+    FAMILY {
+        bigint id PK
+        string family_code UK
+        string head_document
+        bigint zone_id FK
+        bigint shelter_id FK
+        int num_members
+        decimal priority_score
+        jsonb priority_score_breakdown
+        enum status
+        decimal latitude
+        decimal longitude
+    }
+    PERSON {
+        bigint id PK
+        bigint family_id FK
+        string name
+        string document UK
+        date birth_date
+        enum relationship
+        array special_conditions
+        bool requires_medication
+    }
+    PRIVACY_CONSENT {
+        bigint id PK
+        bigint family_id FK
+        datetime accepted_at
+        bigint accepted_by_user_id FK
+        string law_version
+        inet ip_address
+    }
+    WAREHOUSE {
+        bigint id PK
+        string name UK
+        bigint zone_id FK
+        decimal max_capacity_kg
+        decimal current_weight_kg
+        enum status
+        decimal latitude
+        decimal longitude
+    }
+    RESOURCE_TYPE {
+        bigint id PK
+        string name
+        enum category
+        string unit_of_measure
+        decimal unit_weight_kg
+        bool is_active
+    }
+    INVENTORY {
+        bigint id PK
+        bigint warehouse_id FK
+        bigint resource_type_id FK
+        int available_quantity
+        decimal total_weight_kg
+        string batch
+        date expiration_date
+    }
+    INVENTORY_ADJUSTMENT {
+        bigint id PK
+        bigint inventory_id FK
+        int delta
+        enum reason
+        string reason_note
+        bigint user_id FK
+        datetime created_at
+    }
+    DONOR {
+        bigint id PK
+        string name
+        enum type
+        string contact
+        string tax_id
+    }
+    DONATION {
+        bigint id PK
+        string donation_code UK
+        bigint donor_id FK
+        bigint destination_warehouse_id FK
+        enum donation_type
+        decimal monetary_amount
+        datetime date
+    }
+    DONATION_DETAIL {
+        bigint id PK
+        bigint donation_id FK
+        bigint resource_type_id FK
+        int quantity
+        decimal weight_kg
+    }
+    DISTRIBUTION_PLAN {
+        bigint id PK
+        string plan_code UK
+        bigint created_by FK
+        enum status
+        enum scope
+        bigint scope_id
+        datetime created_at
+    }
+    DISTRIBUTION_PLAN_ITEM {
+        bigint id PK
+        bigint plan_id FK
+        bigint family_id FK
+        bigint source_warehouse_id FK
+        int target_coverage_days
+        enum status
+        bigint delivery_id FK
+    }
+    DELIVERY {
+        bigint id PK
+        string delivery_code UK
+        bigint family_id FK
+        bigint source_warehouse_id FK
+        bigint delivered_by FK
+        bigint exception_authorized_by FK
+        datetime delivery_date
+        int coverage_days
+        enum status
+        decimal delivery_latitude
+        decimal delivery_longitude
+        string client_op_id UK
+    }
+    DELIVERY_DETAIL {
+        bigint id PK
+        bigint delivery_id FK
+        bigint resource_type_id FK
+        int quantity
+        decimal weight_kg
+    }
+    HEALTH_VECTOR {
+        bigint id PK
+        enum vector_type
+        enum risk_level
+        enum status
+        string actions_taken
+        decimal latitude
+        decimal longitude
+        bigint zone_id FK
+        bigint shelter_id FK
+        bigint reported_by FK
+        datetime reported_date
+    }
+    RELOCATION {
+        bigint id PK
+        bigint family_id FK
+        bigint origin_shelter_id FK
+        bigint destination_shelter_id FK
+        enum type
+        datetime relocation_date
+        string reason
+        bigint authorized_by FK
+    }

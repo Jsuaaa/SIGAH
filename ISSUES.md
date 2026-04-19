@@ -1,578 +1,902 @@
-# SIGAH - Project Issues (30)
+# SIGAH — Project Issues (33)
 
-> Issues derived from PLAN.md. Each issue includes title, description, acceptance criteria, dependencies, and suggested labels.
+> Issues derivados de PLAN.md y FRONTEND-PLAN.md, alineados al PDF de requerimientos finales (Iteración 3, Abril 2026 — 44 RF, 10 RN, 9 RNF, 31 HU). Cada issue incluye título, descripción, criterios de aceptación, dependencias y etiquetas sugeridas.
+>
+> **Estado**: los issues **#1–#9 están resueltos** (scaffolding + infraestructura base + auth v1). El issue **#9.1** adapta el módulo de auth al enum de roles y validaciones finales. Del #10 en adelante incorpora los cambios del PDF.
 
 ---
 
-## Step 1: Project Initialization
+## Paso 1: Inicialización del proyecto
 
-### Issue #1 — Project scaffolding and dependency installation (monolith)
+### Issue #1 — Scaffolding y dependencias (monolito) ✅
 **Labels**: `setup`, `priority: critical`, `step-1`
-**Description**: Initialize the monolith project structure with `server/` (Express backend) and `client/` (React frontend) subdirectories. Create root `package.json` with orchestration scripts (`dev`, `build`, `start`, `test`). Initialize backend with `npm init` and install all production and dev dependencies. Scaffold frontend with Vite + React + TypeScript, install all frontend dependencies, configure Vite proxy to Express.
+**Estado**: Completado
 
-**Backend Dependencies**: (production) express, @prisma/client, bcrypt, jsonwebtoken, express-validator, cors, helmet, morgan, dotenv — (dev) prisma, jest, supertest, nodemon
-**Frontend Dependencies**: react-router-dom, @tanstack/react-query, @tanstack/react-form, @tanstack/zod-form-adapter, @tanstack/react-table, zod, @headlessui/react, tailwindcss, @tailwindcss/vite, recharts, react-leaflet, leaflet, axios, lucide-react, sonner, date-fns — (dev) @types/leaflet
-**Root Dependencies**: (dev) concurrently
-
-**Acceptance Criteria**:
-- [ ] Root `package.json` exists with `dev`, `build`, `start`, `test`, `install:all` scripts
-- [ ] `server/package.json` exists with all backend dependencies and scripts
-- [ ] `client/package.json` exists with all frontend dependencies
-- [ ] Both `node_modules/` installed without errors
-- [ ] Backend folder structure created: `server/src/{config,routes,controllers,services,middlewares,validators,utils}`, `server/prisma/`, `server/tests/{unit,integration}`
-- [ ] Frontend folder structure created: `client/src/{types,api,hooks,context,schemas,components/{layout,ui,form,map,auth},pages/{auth,dashboard,families,persons,zones,shelters,warehouses,inventory,donors,donations,deliveries,reports,health,relocations,users,map},utils,lib}`
-- [ ] Vite proxy configured to forward `/api` to Express at `localhost:3000`
-- [ ] `npm run build` (from root) compiles frontend successfully
+Inicialización del monolito con `server/` y `client/`. Scripts raíz con `concurrently`. Scaffolding de Vite + React + TypeScript. Instalación de todas las dependencias de producción y dev.
 
 ---
 
-### Issue #2 — Environment and git configuration
+### Issue #2 — Variables de entorno y git config ✅
 **Labels**: `setup`, `priority: critical`, `step-1`
-**Description**: Create `server/.env.example` with all required environment variables (DATABASE_URL, JWT_SECRET, PORT, NODE_ENV), `server/.env` for local development, and root `.gitignore` to exclude `node_modules/`, `.env`, Prisma generated files, and `client/dist/`.
+**Estado**: Completado
 
-**Acceptance Criteria**:
-- [ ] `server/.env.example` documents all required variables
-- [ ] `.gitignore` covers `node_modules/`, `.env`, `server/prisma/*.db`, `client/dist/`
-- [ ] Git repository initialized with initial commit
+`.env.example`, `.env`, `.gitignore` (cubre node_modules/, .env, prisma db, client/dist/).
 
 ---
 
-### Issue #3 — Prisma initialization and config modules
+### Issue #3 — Prisma init y config modules ✅
 **Labels**: `setup`, `database`, `priority: critical`, `step-1`
-**Description**: Run `npx prisma init` inside `server/` to generate `server/prisma/schema.prisma` with PostgreSQL datasource. Create config modules: `server/src/config/env.js` (loads and validates env vars), `server/src/config/prisma.js` (PrismaClient singleton), `server/src/config/constants.js` (business constants like MIN_COVERAGE_DAYS=3, KG_PER_PERSON_PER_DAY=0.6, MAX_DAYS_WITHOUT_AID=30, risk factors).
+**Estado**: Completado
 
-**Acceptance Criteria**:
-- [ ] `server/prisma/schema.prisma` exists with `postgresql` provider and `env("DATABASE_URL")`
-- [ ] `server/src/config/prisma.js` exports a singleton PrismaClient instance
-- [ ] `server/src/config/env.js` validates required env vars on startup
-- [ ] `server/src/config/constants.js` exports all business constants from the plan
+`schema.prisma` con PostgreSQL, `config/env.ts`, `config/prisma.ts` (singleton + PrismaPg adapter), `config/constants.ts`.
 
 ---
 
-## Step 2: Base Infrastructure
+## Paso 2: Infraestructura base
 
-### Issue #4 — Express application setup (app.js)
+### Issue #4 — Express app.ts ✅
 **Labels**: `infrastructure`, `priority: critical`, `step-2`
-**Depends on**: #1, #2
-**Description**: Create `server/src/app.js` with Express configuration including global middlewares: `cors()`, `helmet()`, `morgan('dev')`, `express.json()`. Mount a base health-check route at `GET /api/v1/health`. In production, serve `client/dist/` as static files and handle SPA fallback. Export the app instance.
+**Estado**: Completado
 
-**Acceptance Criteria**:
-- [ ] `server/src/app.js` exports configured Express app
-- [ ] All global middlewares applied (cors, helmet, morgan, json parser)
-- [ ] `GET /api/v1/health` returns `{ status: "ok" }`
-- [ ] API prefix is `/api/v1`
-- [ ] In production, serves `client/dist/` static files with SPA fallback
+Express config con cors, helmet, morgan, json parser. Healthcheck en `/api/v1/health`. Servir `client/dist/` en producción con SPA fallback.
 
 ---
 
-### Issue #5 — Server entry point (index.js)
+### Issue #5 — Server entry index.ts ✅
 **Labels**: `infrastructure`, `priority: critical`, `step-2`
-**Depends on**: #3, #4
-**Description**: Create `server/src/index.js` that connects to the database via `prisma.$connect()` before starting the Express server. Handle connection errors gracefully. Log the port and environment on startup.
+**Estado**: Completado
 
-**Acceptance Criteria**:
-- [ ] Server starts only after successful database connection
-- [ ] Startup logs show port and NODE_ENV
-- [ ] Connection errors are caught and logged before process exit
-- [ ] `npm run dev:server` (from root) starts the server successfully
+Arranque con `prisma.$connect()` previo. Log de puerto y NODE_ENV.
 
 ---
 
-### Issue #6 — Utilities and global error handling
+### Issue #6 — Utilidades y error handler global ✅
 **Labels**: `infrastructure`, `priority: critical`, `step-2`
-**Description**: Implement core utilities and middlewares:
-- `server/src/utils/AppError.js` — Custom error class with statusCode and isOperational flag
-- `server/src/utils/asyncHandler.js` — Wraps async route handlers to catch errors
-- `server/src/utils/pagination.js` — Parses `page` and `limit` query params, returns `skip`/`take` for Prisma and pagination metadata
-- `server/src/middlewares/errorHandler.middleware.js` — Global error handler that formats AppError and unexpected errors
-- `server/src/middlewares/validate.middleware.js` — Runs express-validator checks and returns 400 with formatted errors
+**Estado**: Completado
 
-**Acceptance Criteria**:
-- [ ] `AppError` supports custom status codes and error messages
-- [ ] `asyncHandler` forwards rejected promises to Express error handler
-- [ ] `pagination` defaults to page=1, limit=20 and returns `{ skip, take, page, limit }`
-- [ ] Error handler returns JSON `{ success: false, message, errors? }` with proper status codes
-- [ ] Validation middleware returns `{ success: false, errors: [...] }` on invalid input
+`AppError`, `asyncHandler`, `pagination`, `errorHandler.middleware`, `validate.middleware`.
 
 ---
 
-## Step 3: Authentication Module
+## Paso 3: Autenticación (v1)
 
-### Issue #7 — User model and migration
+### Issue #7 — Modelo User y migración ✅
 **Labels**: `database`, `auth`, `priority: critical`, `step-3`
-**Depends on**: #3
-**Description**: Define the `User` model in `schema.prisma` with fields: id, email (unique), password_hash, role (enum: ADMIN/COORDINATOR/OPERATOR/VIEWER), created_at, updated_at. Run `npx prisma migrate dev --name add-users`.
+**Estado**: Completado
 
-**Acceptance Criteria**:
-- [ ] `User` model defined with all fields and enum role
-- [ ] Migration generated and applied successfully
-- [ ] PrismaClient regenerated with User type
+> ⚠️ **Nota**: el enum `Role` inicial incluía `ADMIN/COORDINATOR/OPERATOR/VIEWER`. Esto se reajusta en **#9.1** al enum final de 6 valores. El rol VIEWER se reemplaza por FUNCIONARIO_CONTROL.
 
 ---
 
-### Issue #8 — Auth service, controller, and routes
+### Issue #8 — Auth service, controller, routes ✅
 **Labels**: `auth`, `priority: critical`, `step-3`
-**Depends on**: #6, #7
-**Description**: Implement the authentication module:
-- `server/src/services/auth.service.js` — register (hash password with bcrypt, create user), login (verify credentials, generate JWT with 8h expiry, payload: { id, email, role }), getProfile, changePassword
-- `server/src/controllers/auth.controller.js` — handle HTTP layer
-- `server/src/routes/auth.routes.js` — POST `/login` (public), POST `/register` (admin only), GET `/me`, PUT `/change-password`
-- `server/src/validators/auth.validator.js` — email format, password min length, role enum
+**Estado**: Completado
 
-**Acceptance Criteria**:
-- [ ] Register creates user with hashed password (bcrypt)
-- [ ] Login returns JWT token with 8h expiration
-- [ ] JWT payload contains `{ id, email, role }`
-- [ ] `/me` returns current user profile (no password_hash)
-- [ ] Change password verifies old password before updating
-- [ ] Validation rejects invalid email, weak password, invalid role
+Register/login/getProfile/changePassword. JWT 8h con payload `{ id, email, role }`. Validators con password mínimo 6 chars (se endurece a 8 en #9.1).
 
 ---
 
-### Issue #9 — Auth and role middlewares + admin seed
+### Issue #9 — Auth + role middlewares + admin seed ✅
 **Labels**: `auth`, `middleware`, `priority: critical`, `step-3`
-**Depends on**: #8
-**Description**: Implement:
-- `server/src/middlewares/auth.middleware.js` — Extracts and verifies JWT from `Authorization: Bearer <token>`, attaches user to `req.user`
-- `server/src/middlewares/role.middleware.js` — Factory function `authorize(...roles)` that checks `req.user.role` against allowed roles
-- `server/prisma/seed.js` — Seeds initial admin user (email from env or default)
-- Add `"prisma": { "seed": "node prisma/seed.js" }` to package.json
+**Estado**: Completado
 
-**Acceptance Criteria**:
-- [ ] Unauthenticated requests get 401 with message
-- [ ] Invalid/expired tokens get 401
-- [ ] Unauthorized roles get 403 with message
-- [ ] `npx prisma db seed` creates admin user
-- [ ] Admin user can register new users; non-admins cannot
+`auth.middleware`, `role.middleware` (factory `authorize(...roles)`), seed idempotente de admin.
 
 ---
 
-## Step 4: Zones and Shelters
+## Paso 3.1: Adaptación de Auth al PDF final
 
-### Issue #10 — Zone model and full CRUD
-**Labels**: `feature`, `geo`, `step-4`
+### Issue #9.1 — Adaptación del módulo Auth a requerimientos finales (roles, bloqueo, nombre, contraseña) 🆕
+**Labels**: `auth`, `migration`, `priority: critical`, `step-3`
 **Depends on**: #9
-**Description**: Define the `Zone` model in schema.prisma (name, risk_level enum: LOW/MEDIUM/HIGH/CRITICAL, latitude Float, longitude Float, estimated_population Int). Migrate. Implement full CRUD with routes, controller, service, and validators. Include nested endpoints: `GET /:id/families`, `GET /:id/shelters`, `GET /:id/warehouses`. Seed with sample Monteria zones.
+
+Ajustar el módulo de auth ya entregado para cumplir con el PDF final. NO requiere revertir nada — todos los cambios son aditivos mediante una nueva migración.
+
+**Cambios técnicos**:
+1. **Migración Prisma `add-roles-and-user-fields`**:
+   - Renombrar enum `Role` a los 6 valores finales: `ADMIN`, `CENSADOR`, `OPERADOR_ENTREGAS`, `COORDINADOR_LOGISTICA`, `FUNCIONARIO_CONTROL`, `REGISTRADOR_DONACIONES`. Antes de aplicar, reasignar el admin seedeado a `ADMIN` (sigue siendo el único usuario).
+   - Añadir a `User`: `name String`, `is_active Boolean @default(true)`, `failed_login_attempts Int @default(0)`, `locked_until DateTime?`, `last_login_at DateTime?`, `password_must_change Boolean @default(false)`.
+2. **`auth.validator.ts`**: password mínimo 8 caracteres (HU-03 CA3). `registerRules` con los 6 roles. `name` requerido en register.
+3. **`auth.service.ts`**:
+   - `login`: si `is_active=false` → 403. Incrementa `failed_login_attempts` en cada fallo; al llegar a 5, setea `locked_until = now + 15min`. Si `locked_until > now` → 423. Al loguear correctamente, resetea contador y actualiza `last_login_at`.
+   - `register`: persiste `name`; al crear usuario setea `password_must_change=true` (contraseña temporal — HU-01 CA5).
+   - `changePassword`: al éxito, `password_must_change=false`.
+   - Nuevo método `resetPassword(userId)` (ADMIN) que genera password temporal.
+   - Nuevo método `setActive(userId, active)` (ADMIN) — activar/desactivar.
+4. **`auth.routes.ts`**: añadir `POST /reset-password/:userId`, `PUT /users/:id`, `GET /users` (ADMIN).
+5. **`seed.ts`**: añadir `name: 'Administrador SIGAH'`.
+6. **`constants.ts`**:
+   - `CODE_PREFIXES.DELIVERY = 'ENT'` (RN-07)
+   - `WAREHOUSE_CAPACITY_ALERT_THRESHOLD = 0.85` (HU-11 CA3)
+   - Añadir `FAILED_LOGIN_LIMIT = 5`, `ACCOUNT_LOCK_MINUTES = 15`, `MIN_PASSWORD_LENGTH = 8`.
+7. **`types/express.d.ts`**: payload JWT añade `name`.
 
 **Acceptance Criteria**:
-- [ ] Zone model with all fields including coordinates
-- [ ] CRUD endpoints: POST, GET (list with pagination), GET /:id, PUT /:id, DELETE /:id
-- [ ] Nested endpoints return related entities
-- [ ] Validators check required fields, risk_level enum, coordinate ranges
-- [ ] Role protection: create/update/delete require ADMIN or COORDINATOR
-- [ ] Seed data with real Monteria coordinates
+- [ ] Migración aplica sin pérdida de datos (admin queda con rol ADMIN).
+- [ ] Login incorrecto 5 veces bloquea la cuenta 15 min con respuesta 423.
+- [ ] Usuario con `is_active=false` recibe 403 en login.
+- [ ] Register exige `name` y rechaza roles fuera del nuevo enum.
+- [ ] `password_must_change=true` tras register y reset; `false` tras changePassword.
+- [ ] ADMIN puede resetear contraseña de cualquier usuario (`POST /auth/reset-password/:id`).
+- [ ] ADMIN puede activar/desactivar usuarios (`PUT /auth/users/:id`).
+- [ ] Validator rechaza contraseñas <8 caracteres.
+- [ ] Tests: login lockout, usuario desactivado, register con nombre, rol inválido, reset de contraseña.
 
 ---
 
-### Issue #11 — Shelter model and full CRUD
+## Paso 4: Zonas y refugios
+
+### Issue #10 — Modelo Zone y CRUD + seed de Montería
+**Labels**: `feature`, `geo`, `step-4`
+**Depends on**: #9.1
+
+Modelo `Zone` (name, risk_level LOW/MEDIUM/HIGH/CRITICAL, latitude, longitude, estimated_population Int). CRUD completo. Endpoints anidados `GET /:id/families`, `GET /:id/shelters`, `GET /:id/warehouses`. Seed con zonas reales de la margen izquierda de Montería.
+
+**Acceptance Criteria**:
+- [ ] Zone model con coordenadas NOT NULL (RN-10).
+- [ ] CRUD + endpoints anidados.
+- [ ] Validators: risk_level enum, rangos de coordenadas.
+- [ ] Protección de rol: crear/editar/eliminar requiere ADMIN o COORDINADOR_LOGISTICA.
+- [ ] Seed con zonas reales.
+
+---
+
+### Issue #11 — Modelo Shelter y CRUD + alerta 90%
 **Labels**: `feature`, `geo`, `step-4`
 **Depends on**: #10
-**Description**: Define the `Shelter` model (name, address, zone_id FK, max_capacity Int, current_occupancy Int default 0, type String, latitude Float required, longitude Float required). Migrate. Implement full CRUD plus `PUT /:id/occupancy` to update current_occupancy. Seed with sample shelters.
+
+Modelo `Shelter` (name, address, zone_id FK, max_capacity Int, current_occupancy Int default 0, type, latitude NOT NULL, longitude NOT NULL). CRUD + `PUT /:id/occupancy`. Alerta visible cuando ocupación > 90% (HU-10 CA2). Rechaza refugios sin coordenadas (HU-10 CA5).
 
 **Acceptance Criteria**:
-- [ ] Shelter model with zone relation and required coordinates
-- [ ] CRUD endpoints with zone_id validation (zone must exist)
-- [ ] `PUT /:id/occupancy` validates occupancy <= max_capacity
-- [ ] List endpoint supports filtering by zone_id
-- [ ] Seed data linked to existing zones
+- [ ] Shelter con coordenadas obligatorias.
+- [ ] `PUT /:id/occupancy` valida occupancy <= max_capacity.
+- [ ] Endpoint lista incluye flag `is_over_capacity` si >90%.
+- [ ] Filtrable por zone_id.
+- [ ] Seed con refugios.
 
 ---
 
-## Step 5: Families and Persons
+## Paso 5: Familias, personas y consentimiento privacidad
 
-### Issue #12 — Family model and CRUD with sequential codes
+### Issue #12 — Modelo Family + PrivacyConsent + CRUD con código secuencial
 **Labels**: `feature`, `census`, `priority: high`, `step-5`
 **Depends on**: #10
-**Description**: Define the `Family` model (family_code unique, head_document, zone_id FK, shelter_id FK optional, num_members, num_children_under_5, num_adults_over_65, num_pregnant, num_disabled, priority_score Float default 0, status enum: REGISTERED/ACTIVE/RELOCATED/INACTIVE, latitude Float optional, longitude Float optional, reference_address optional). Migrate. Implement CRUD with automatic sequential code generation (FAM-2026-00001). Include `GET /:id/deliveries` and `GET /:id/eligibility`.
+
+Modelo `Family` (family_code único, head_document, zone_id FK, shelter_id FK opcional, num_members, num_children_under_5, num_adults_over_65, num_pregnant, num_disabled, priority_score Float default 0, **priority_score_breakdown JSON**, status enum **ACTIVO/EN_REFUGIO/EVACUADO**, latitude opcional, longitude opcional, reference_address opcional).
+
+Modelo `PrivacyConsent` (family_id FK, accepted_at, accepted_by_user_id FK, law_version "Ley 1581/2012", ip_address).
+
+CRUD con código secuencial FAM-2026-NNNNN. `GET /search?q=X` unifica búsqueda por `family_code`, `head_document`, `reference_address` con respuesta <2s. `GET /:id/deliveries`, `GET /:id/eligibility`.
 
 **Acceptance Criteria**:
-- [ ] Family model with all fields and zone/shelter relations
-- [ ] Sequential code auto-generated on creation (FAM-YYYY-NNNNN)
-- [ ] `num_members` validated > 0
-- [ ] `GET /:id/eligibility` returns whether family can receive aid
-- [ ] `GET /:id/deliveries` returns delivery history
-- [ ] List supports filtering by zone_id, status, and sorting by priority_score
+- [ ] `POST /families` exige `privacy_consent_accepted=true`; si no, 400 (RN-09).
+- [ ] Persiste PrivacyConsent en la misma transacción que Family.
+- [ ] Código FAM secuencial generado automáticamente (RN-07).
+- [ ] `num_members > 0` validado.
+- [ ] Status enum es ACTIVO/EN_REFUGIO/EVACUADO.
+- [ ] Búsqueda unificada responde <2s con 12.000 familias (RNF-04).
+- [ ] Filtrable por zone_id, status, shelter_id; ordenable por priority_score.
 
 ---
 
-### Issue #13 — Person model and CRUD
+### Issue #13 — Modelo Person y CRUD
 **Labels**: `feature`, `census`, `step-5`
 **Depends on**: #12
-**Description**: Define the `Person` model (family_id FK, name, document unique, birth_date DateTime, gender enum, relationship String, special_conditions String[], requires_medication Boolean). Migrate. Implement CRUD linked to family. Include `GET /search?document=X` for person lookup.
+
+Modelo `Person` (family_id FK, name, document único, birth_date, gender, relationship enum **ESPOSO_A/HIJO_A/PADRE_MADRE/HERMANO_A/OTRO**, special_conditions String[], requires_medication Boolean). CRUD linked to family. `GET /search?document=X`.
 
 **Acceptance Criteria**:
-- [ ] Person model with family relation
-- [ ] CRUD validates family_id exists
-- [ ] Document search returns person with family info
-- [ ] Creating/deleting persons updates family member counts (num_members, etc.)
-- [ ] special_conditions stored as array
+- [ ] Person con relación a Family.
+- [ ] `special_conditions` como array (valores: CHILD_UNDER_5, ELDERLY_OVER_65, PREGNANT, DISABLED).
+- [ ] Creación/edición/borrado actualiza aggregate counts en Family.
+- [ ] Búsqueda por documento retorna persona + info de familia.
 
 ---
 
-### Issue #14 — Family-Person composition sync and validations
+### Issue #14 — Sync composición ↔ puntaje + recálculo automático
 **Labels**: `feature`, `census`, `step-5`
-**Depends on**: #12, #13
-**Description**: Ensure consistency between Person records and Family aggregate fields. When persons are added/removed from a family, automatically recalculate: num_members, num_children_under_5 (age < 5 from birth_date), num_adults_over_65 (age > 65), num_pregnant (from special_conditions), num_disabled (from special_conditions). Trigger priority score recalculation on composition change.
+**Depends on**: #13, #20 (scoring_config)
+
+Al agregar/remover/editar personas, recalcular: num_members, num_children_under_5 (birth_date), num_adults_over_65, num_pregnant, num_disabled. Invocar servicio de priorización para actualizar `priority_score` (lee `scoring_config`). No permitir eliminar la última persona de una familia (num_members >= 1).
 
 **Acceptance Criteria**:
-- [ ] Adding a person updates family aggregate counts
-- [ ] Removing a person updates family aggregate counts
-- [ ] Age-based counts (children under 5, adults over 65) calculated from birth_date
-- [ ] Priority score recalculated after composition change
-- [ ] Cannot delete last person from a family (num_members >= 1)
+- [ ] Aggregate counts actualizados en cada mutación de Person.
+- [ ] Edades calculadas de `birth_date`.
+- [ ] `priority_score` recalculado tras cualquier cambio de composición (RN-08).
+- [ ] Bloqueo al eliminar último miembro.
+- [ ] Auditoría registra before/after en cambios.
 
 ---
 
-## Step 6: Warehouses, Resource Types, and Inventory
+## Paso 6: Bodegas, recursos e inventario
 
-### Issue #15 — Warehouse model and CRUD with coordinates
+### Issue #15 — Modelo Warehouse y CRUD con alerta 85% y bloqueo 100%
 **Labels**: `feature`, `inventory`, `geo`, `step-6`
 **Depends on**: #10
-**Description**: Define the `Warehouse` model (name, address, latitude Float required, longitude Float required, max_capacity_kg Float, current_weight_kg Float default 0, status enum: ACTIVE/INACTIVE, zone_id FK). Migrate. Implement full CRUD with capacity validation.
+
+Modelo `Warehouse` (name, address, latitude NOT NULL, longitude NOT NULL, max_capacity_kg, current_weight_kg default 0, status ACTIVE/INACTIVE, zone_id FK). CRUD con validación de capacidad.
 
 **Acceptance Criteria**:
-- [ ] Warehouse model with required coordinates and zone relation
-- [ ] CRUD with zone_id validation
-- [ ] Cannot set current_weight_kg > max_capacity_kg
-- [ ] List supports filtering by zone_id and status
-- [ ] Seed with sample warehouses (20,000 kg total capacity)
+- [ ] Coordenadas obligatorias (RN-10).
+- [ ] Lista incluye `is_over_85_percent` flag (HU-11 CA3).
+- [ ] Cualquier operación que haga `current_weight_kg > max_capacity_kg` rechaza con 400 (HU-11 CA4, RN-03).
+- [ ] Filtrable por zone_id, status.
+- [ ] Seed con bodegas reales de Montería sumando 20.000 kg.
 
 ---
 
-### Issue #16 — Resource types CRUD and inventory endpoints
+### Issue #16 — ResourceTypes + Inventory + InventoryAdjustment con motivo
 **Labels**: `feature`, `inventory`, `step-6`
 **Depends on**: #15
-**Description**: Define `ResourceType` model (name, category enum: FOOD/SHELTER/HYGIENE/HEALTH, unit_of_measure, unit_weight_kg Float) and `Inventory` model (warehouse_id FK, resource_type_id FK, available_quantity Int, total_weight_kg Float, batch String, expiration_date DateTime). Migrate. Implement CRUD for resource_types. Implement inventory endpoints: `GET /inventory?warehouse_id=X`, `GET /inventory/summary`, `PUT /inventory/:id/adjustment`.
+
+Modelo `ResourceType` (name, category FOOD/BLANKET/MATTRESS/HYGIENE/MEDICATION, unit_of_measure, unit_weight_kg, **is_active Boolean default true**; unique (name, category)).
+Modelo `Inventory` (warehouse_id FK, resource_type_id FK, available_quantity, total_weight_kg, batch, expiration_date; unique (warehouse_id, resource_type_id, batch)).
+Modelo `InventoryAdjustment` (inventory_id FK, delta Int, **reason enum MERMA/DANO/DEVOLUCION/CORRECCION**, reason_note, user_id FK, created_at).
+
+CRUD de ResourceTypes. Endpoints `/inventory?warehouse_id=X`, `/inventory/summary`, `PUT /:id/adjustment`.
 
 **Acceptance Criteria**:
-- [ ] ResourceType and Inventory models with proper relations
-- [ ] Unique constraint on Inventory (warehouse_id, resource_type_id, batch)
-- [ ] Resource types seeded with base catalog (rice, beans, water, blankets, soap, first-aid kits, etc.)
-- [ ] Inventory summary aggregates across warehouses
-- [ ] Manual adjustment validates warehouse capacity
+- [ ] Unique (name, category) en ResourceType (HU-14 CA2).
+- [ ] Soft-delete con `is_active=false` en vez de DELETE (HU-14 CA4).
+- [ ] Categoría enum completa del PDF (incluye MEDICATION).
+- [ ] `PUT /inventory/:id/adjustment` exige `reason` enum + `reason_note` (HU-17 CA1-2).
+- [ ] Rechaza ajustes que dejen stock < 0 (HU-17 CA3).
+- [ ] Actualiza `current_weight_kg` de la bodega en la misma transacción.
+- [ ] Solo ADMIN/COORDINADOR_LOGISTICA pueden ajustar (HU-17 CA5).
+- [ ] Registro en `audit_logs` (vía middleware #28).
+- [ ] Resumen agregado por categoría / bodega.
+- [ ] Seed con catálogo base (arroz, frijoles, agua, cobijas, jabón, botiquines, etc.).
 
 ---
 
-### Issue #17 — Inventory alerts and nearest warehouse endpoint
+### Issue #17 — Alertas configurables + bodega más cercana
 **Labels**: `feature`, `inventory`, `geo`, `step-6`
 **Depends on**: #16
-**Description**: Implement:
-- `GET /inventory/alerts` — Returns items below a configurable threshold, items expiring within 7 days, and warehouses above 90% capacity
-- `GET /warehouses/nearest?lat=X&lng=Y` — Finds the nearest warehouse with available stock using Haversine distance calculation
+
+Modelo `AlertThreshold` (resource_type_id FK, min_quantity Int, updated_by FK, updated_at). Endpoints `GET /alert-thresholds`, `PUT /alert-thresholds`.
+
+`GET /inventory/alerts` — retorna stock bajo (por umbral configurable), vencimientos próximos (7 días), vencidos, bodegas >85%.
+
+`GET /warehouses/nearest?lat=X&lng=Y` — Haversine, solo bodegas ACTIVE con stock > 0.
 
 **Acceptance Criteria**:
-- [ ] Low stock alerts with configurable threshold
-- [ ] Expiration alerts for items expiring within 7 days
-- [ ] Capacity alerts for warehouses above 90%
-- [ ] Nearest warehouse calculated using Haversine formula
-- [ ] Nearest endpoint only returns ACTIVE warehouses with stock > 0
+- [ ] Umbrales configurables por recurso (HU-16 CA2).
+- [ ] Alertas incluyen severidad y enlace a la bodega.
+- [ ] Nearest solo ACTIVE con stock y calcula distancia.
+- [ ] Si no hay bodega con disponibilidad, mensaje claro (HU-12 CA4).
 
 ---
 
-## Step 7: Donors and Donations
+## Paso 7: Donantes y donaciones
 
-### Issue #18 — Donor model and CRUD
+### Issue #18 — Modelo Donor con nuevo enum y contact requerido
 **Labels**: `feature`, `donations`, `step-7`
-**Depends on**: #9
-**Description**: Define the `Donor` model (name, type enum: CITY_HALL/STATE_GOVERNMENT/PRIVATE_COMPANY/CITIZEN/NGO, tax_id String optional unique). Migrate. Implement full CRUD with validators.
+**Depends on**: #9.1
+
+Modelo `Donor` (name, **type enum PERSONA_NATURAL/EMPRESA/ALCALDIA/GOBERNACION/ORGANIZACION**, contact String (requerido — teléfono o correo), tax_id opcional; **unique compuesto (name, type)** — HU-18 CA3).
 
 **Acceptance Criteria**:
-- [ ] Donor model with type enum
-- [ ] CRUD with validations
-- [ ] List supports filtering by donor type
-- [ ] tax_id unique when provided
+- [ ] 5 valores del enum coinciden con HU-18 CA1.
+- [ ] `contact` required (HU-18 CA2).
+- [ ] Unique (name, type) a nivel BD.
+- [ ] Filtrable por tipo.
+- [ ] Soft-delete si tiene donaciones asociadas (marcar inactivo, no borrar).
 
 ---
 
-### Issue #19 — Donation creation with transactional inventory update
+### Issue #19 — Donación transaccional con inventario
 **Labels**: `feature`, `donations`, `inventory`, `priority: high`, `step-7`
 **Depends on**: #16, #18
-**Description**: Define `Donation` model (donor_id FK, destination_warehouse_id FK, donation_type enum: IN_KIND/MONETARY/MIXED, monetary_amount Float optional, date DateTime, donation_code unique) and `DonationDetail` model (donation_id FK, resource_type_id FK, quantity Int, weight_kg Float). Migrate. Implement donation creation endpoint that uses `prisma.$transaction()` to atomically: create donation + details, update inventory quantities and weights in destination warehouse, update warehouse current_weight_kg. Validate warehouse capacity is not exceeded. Sequential code: DON-YYYY-NNNNN.
+
+Modelo `Donation` (donation_code DON-2026-NNNNN, donor_id FK, destination_warehouse_id FK, donation_type IN_KIND/MONETARY/MIXED, monetary_amount opcional, date).
+Modelo `DonationDetail` (donation_id FK, resource_type_id FK, quantity, weight_kg).
+
+`POST /donations` con transacción que: crea Donation + Details, actualiza Inventory (quantity, weight), actualiza Warehouse current_weight_kg. Valida capacidad destino. Rollback si excede.
 
 **Acceptance Criteria**:
-- [ ] Donation and DonationDetail models
-- [ ] Sequential donation code generation
-- [ ] In-kind donation atomically updates inventory and warehouse weight
-- [ ] Transaction rolls back if warehouse capacity would be exceeded
-- [ ] Monetary donations stored without inventory impact
-- [ ] `GET /donations` with filters by donor, type, date range
-- [ ] `GET /donors/:id/donations` returns donor's donation history
+- [ ] Código DON secuencial.
+- [ ] Atomic: inventario + peso se actualizan o todo se revierte.
+- [ ] Rechaza si excede `max_capacity_kg` de la bodega (HU-19 CA3).
+- [ ] Monetary-only no afecta inventario.
+- [ ] `GET /donations` con filtros (donor, type, date range).
+- [ ] `GET /donors/:id/donations` retorna historial ordenado por fecha desc (HU-20 CA1).
 
 ---
 
-## Step 8: Prioritization Algorithm
+## Paso 8: Priorización configurable
 
-### Issue #20 — Prioritization scoring service
+### Issue #20 — ScoringConfig + servicio de priorización 🆕
 **Labels**: `feature`, `algorithm`, `priority: high`, `step-8`
 **Depends on**: #12
-**Description**: Implement `server/src/services/prioritization.service.js` with the scoring formula:
-```
-score = (2 * num_members) + (5 * children_under_5) + (4 * adults_over_65) + (5 * pregnant) + (4 * disabled) + (3 * zone_risk_factor) + (1.5 * days_without_aid) - (2 * deliveries_received)
-```
-Zone risk factors: LOW=1, MEDIUM=2, HIGH=3, CRITICAL=4. Days without aid capped at 30.
+
+Modelo `ScoringConfig` (key PK, value Float, updated_by FK, updated_at). Seed con pesos iniciales (W_MEMBERS=2, W_CHILDREN_5=5, W_ADULTS_65=4, W_PREGNANT=5, W_DISABLED=4, W_ZONE_RISK=3, W_DAYS_NO_AID=1.5, W_DELIVERIES=2, MAX_DAYS=30).
+
+`prioritization.service.ts`:
+- `calculateScore(family)` con breakdown por factor.
+- Lee pesos de `scoring_config` con **caché en memoria invalidable**.
+- `invalidateCache()` al actualizar config.
+
+Endpoints `GET /scoring-config` (autenticado) y `PUT /scoring-config` (ADMIN / COORDINADOR_LOGISTICA).
 
 **Acceptance Criteria**:
-- [ ] Scoring formula implemented exactly as specified
-- [ ] `calculateScore(family)` returns correct score given family data
-- [ ] Days without aid calculated from last delivery date (or registration date if no deliveries)
-- [ ] Zone risk factor resolved from family's zone
-- [ ] Unit tests cover edge cases: new family (no deliveries), max days cap, all vulnerability factors
+- [ ] Tabla seedeada con los pesos iniciales.
+- [ ] `calculateScore()` retorna `{ total, breakdown: { factor: valor } }`.
+- [ ] `GET /families/:id` y `GET /prioritization/ranking` incluyen `priority_score_breakdown` (HU-08 CA2).
+- [ ] Actualizar config invalida caché; siguiente cálculo usa nuevos valores.
+- [ ] PUT restringido a ADMIN/COORDINADOR_LOGISTICA.
+- [ ] Tests unitarios: scoring con varias composiciones, tope de días sin ayuda, breakdown correcto.
 
 ---
 
-### Issue #21 — Prioritization API endpoints
+### Issue #21 — Endpoints de priorización
 **Labels**: `feature`, `algorithm`, `step-8`
 **Depends on**: #20
-**Description**: Implement prioritization endpoints:
-- `GET /prioritization/ranking` — Returns families ordered by priority_score descending, with pagination
-- `POST /prioritization/recalculate` — Bulk recalculates scores for all active families and updates their priority_score field
-- `GET /prioritization/next-batch?count=N` — Returns the top N highest-priority eligible families (not currently covered)
+
+- `GET /prioritization/ranking` — familias ordenadas por puntaje desc, paginado.
+- `POST /prioritization/recalculate` — bulk recalcula scores de todas las familias activas. Invalida caché primero.
+- `GET /prioritization/next-batch?count=N` — top N elegibles (sin cobertura vigente).
 
 **Acceptance Criteria**:
-- [ ] Ranking returns paginated list sorted by score DESC
-- [ ] Recalculate updates all active families' scores
-- [ ] Next-batch filters out families with active coverage
-- [ ] Recalculate endpoint restricted to ADMIN and COORDINATOR roles
-- [ ] Response includes family_code, priority_score, zone, last_delivery_date
+- [ ] Ranking paginado con filtros (zona, estado) y breakdown incluido.
+- [ ] Recalculate solo ADMIN/COORDINADOR_LOGISTICA.
+- [ ] Next-batch filtra elegibilidad.
+- [ ] Incluye family_code, priority_score, zona, last_delivery_date.
 
 ---
 
-## Step 9: Delivery Distribution
+## Paso 9: Entregas
 
-### Issue #22 — Delivery and DeliveryDetail models
+### Issue #22 — Delivery + DeliveryDetail (prefijo ENT, estados ES, excepción)
 **Labels**: `database`, `deliveries`, `step-9`
 **Depends on**: #12, #15
-**Description**: Define `Delivery` model (family_id FK, source_warehouse_id FK, delivery_date DateTime, delivered_by FK to User, received_by_document String, coverage_days Int CHECK >= 3, status enum: SCHEDULED/IN_TRANSIT/DELIVERED/CANCELLED, delivery_latitude Float optional, delivery_longitude Float optional, delivery_code unique) and `DeliveryDetail` model (delivery_id FK, resource_type_id FK, quantity Int, weight_kg Float). Migrate.
+
+Modelo `Delivery` (delivery_code **ENT-2026-NNNNN**, family_id FK, source_warehouse_id FK, plan_item_id FK opcional, delivery_date, delivered_by FK User, received_by_document, coverage_days Int CHECK >= 3, **status enum PROGRAMADA/EN_CURSO/ENTREGADA**, delivery_latitude, delivery_longitude, **exception_reason opcional**, **exception_authorized_by FK User opcional**, client_op_id String? unique).
+
+Modelo `DeliveryDetail` (delivery_id FK, resource_type_id FK, quantity, weight_kg).
 
 **Acceptance Criteria**:
-- [ ] Delivery model with all relations and constraints
-- [ ] coverage_days has database-level CHECK >= 3
-- [ ] Sequential delivery code: DEL-YYYY-NNNNN
-- [ ] DeliveryDetail linked to Delivery and ResourceType
-- [ ] Migration applied successfully
+- [ ] Delivery con todas las relaciones y constraints.
+- [ ] CHECK coverage_days >= 3 a nivel BD.
+- [ ] Código ENT secuencial (RN-07).
+- [ ] Status enum en español.
+- [ ] `client_op_id` único (para idempotencia offline — #32).
 
 ---
 
-### Issue #23 — Eligibility verification and ration calculation
+### Issue #23 — Elegibilidad + ración + excepción coordinator
 **Labels**: `feature`, `deliveries`, `priority: high`, `step-9`
 **Depends on**: #20, #22
-**Description**: Implement in delivery service:
-- **Eligibility check**: A family is eligible if they have no active delivery whose coverage period has not expired (delivery_date + coverage_days > today = not eligible)
-- **Minimum ration calculation**: For a given family and coverage_days, calculate minimum food quantity: `num_members * 0.6 kg/person/day * coverage_days`. Ensure coverage_days >= 3.
+
+Servicio de delivery:
+- **Elegibilidad**: familia no tiene entrega ENTREGADA cuya cobertura no haya expirado (`delivery_date + coverage_days > today`). Respuesta <2s (RNF-04).
+- **Ración mínima**: `num_members * 0.6 * coverage_days` con `coverage_days >= 3` (HU-23).
+- **Excepción**: endpoint `POST /deliveries/exception` permite crear entrega anticipada con `exception_reason` obligatorio y `exception_authorized_by` = user coordinador. Solo rol COORDINADOR_LOGISTICA (HU-23 CA5).
 
 **Acceptance Criteria**:
-- [ ] `checkEligibility(familyId)` returns { eligible: boolean, reason?, last_delivery?, coverage_expires? }
-- [ ] Duplicate delivery to covered family returns 409 Conflict
-- [ ] Minimum ration calculated correctly
-- [ ] coverage_days < 3 rejected with 400
+- [ ] `checkEligibility(familyId)` retorna `{ eligible, reason?, last_delivery?, coverage_expires?, days_remaining? }` (HU-23 CA2).
+- [ ] Entrega duplicada a familia cubierta retorna 409.
+- [ ] Ración calculada correctamente.
+- [ ] `coverage_days < 3` rechazado con 400.
+- [ ] Excepción solo por COORDINADOR_LOGISTICA, con justificación registrada.
+- [ ] Intento bloqueado registrado en `audit_logs`.
 
 ---
 
-### Issue #24 — Transactional delivery creation and batch delivery
+### Issue #24 — Creación transaccional + entrega por lote + Idempotency-Key
 **Labels**: `feature`, `deliveries`, `priority: high`, `step-9`
 **Depends on**: #23
-**Description**: Implement delivery creation using `prisma.$transaction()`:
-1. Verify family eligibility
-2. Verify source warehouse has sufficient stock for all items
-3. Create Delivery + DeliveryDetails
-4. Decrement inventory quantities and weights
-5. Update warehouse current_weight_kg
-6. Recalculate family priority score
 
-Also implement `POST /deliveries/batch` — accepts count N, fetches top N priority families from next-batch, creates deliveries for each with a standard aid package from the nearest warehouse with stock.
+`POST /deliveries` (individual) dentro de `prisma.$transaction()`:
+1. Verifica elegibilidad.
+2. Verifica stock suficiente en bodega.
+3. Crea Delivery + DeliveryDetails.
+4. Decrementa inventario y `current_weight_kg`.
+5. Recalcula priority_score.
+
+Acepta header `Idempotency-Key` (= `client_op_id`). Si ya existe delivery con ese op_id, retorna la misma respuesta sin duplicar.
+
+`POST /deliveries/batch` — procesa top N priorizadas con paquete estándar, salta las ineligibles, asigna bodega más cercana.
+
+`PUT /deliveries/:id/status` para transicionar PROGRAMADA → EN_CURSO → ENTREGADA.
 
 **Acceptance Criteria**:
-- [ ] Single delivery creation is fully atomic (all or nothing)
-- [ ] Insufficient stock returns 400 with details of missing items
-- [ ] Inventory and warehouse weight decremented correctly
-- [ ] Family priority score recalculated after delivery
-- [ ] Batch delivery processes top N families
-- [ ] Batch skips families that become ineligible during processing
-- [ ] `GET /deliveries` with filters (family, warehouse, status, date range)
-- [ ] `PUT /deliveries/:id/status` to update delivery status
+- [ ] Creación atómica (todo o nada).
+- [ ] Stock insuficiente retorna 400 con detalle de faltantes.
+- [ ] Priority_score recalculado tras entrega (RN-08).
+- [ ] Batch procesa top N con skip de ineligibles.
+- [ ] `Idempotency-Key` funciona: segundo POST con mismo key retorna delivery existente, no duplica.
+- [ ] Transiciones de estado validadas (no permite retroceder).
+- [ ] Lista con filtros (family, warehouse, status, date range).
 
 ---
 
-## Step 10: Health Vectors and Relocations
+## Paso 10: Planes de distribución
 
-### Issue #25 — Health vectors model and CRUD
-**Labels**: `feature`, `health`, `geo`, `step-10`
+### Issue #25 — Distribution Plans 🆕
+**Labels**: `feature`, `deliveries`, `priority: high`, `step-10`
+**Depends on**: #21, #24
+
+Modelos:
+- `DistributionPlan` (plan_code PLN-2026-NNNNN, created_by FK, **status PROGRAMADA/EN_EJECUCION/COMPLETADA/CANCELADA**, **scope GLOBAL/ZONA/REFUGIO/LOTE**, scope_id opcional, notes, created_at).
+- `DistributionPlanItem` (plan_id FK, family_id FK, source_warehouse_id FK, target_coverage_days, **status PENDIENTE/ENTREGADO/SIN_ATENDER**, delivery_id FK opcional).
+
+Endpoints:
+- `POST /distribution-plans` — genera plan: toma familias elegibles del scope, las ordena por puntaje, asigna recursos respetando stock y cobertura mínima. Marca items como SIN_ATENDER si no alcanza (HU-21 CA4). Guarda como PROGRAMADA.
+- `GET /distribution-plans`, `GET /:id` (con items), `PUT /:id/cancel`.
+- `POST /:id/execute` — materializa entregas de items PENDIENTE → transiciona plan a EN_EJECUCION / COMPLETADA.
+
+**Acceptance Criteria**:
+- [ ] Plan-code secuencial PLN.
+- [ ] Scope filtra familias (GLOBAL/ZONA/REFUGIO/LOTE).
+- [ ] Items ordenados por puntaje descendente.
+- [ ] Genera SIN_ATENDER + alerta cuando no hay stock suficiente.
+- [ ] Cada item asignado garantiza 3 días (RN-01).
+- [ ] Solo ADMIN/COORDINADOR_LOGISTICA pueden crear/ejecutar.
+- [ ] Execute crea Deliveries con `plan_item_id` referenciado.
+- [ ] Tests de integración del flujo completo (plan → execute → inventario decrementado → priority_score recalculado).
+
+---
+
+## Paso 11: Salubridad y traslados
+
+### Issue #26 — Health Vectors con estado
+**Labels**: `feature`, `health`, `geo`, `step-11`
 **Depends on**: #10
-**Description**: Define `HealthVector` model (vector_type String, risk_level enum: LOW/MEDIUM/HIGH/CRITICAL, zone_id FK optional, shelter_id FK optional, actions_taken String, latitude Float, longitude Float, reported_date DateTime, reported_by FK to User). Migrate. Implement full CRUD.
+
+Modelo `HealthVector` (**vector_type enum AGUA_CONTAMINADA/INSECTOS/ROEDORES/OTRO**, risk_level LOW/MEDIUM/HIGH/CRITICAL, **status enum ACTIVO/EN_ATENCION/RESUELTO**, actions_taken, latitude, longitude, zone_id FK opcional, shelter_id FK opcional, reported_date, reported_by FK User). CRUD + `PUT /:id/status`.
 
 **Acceptance Criteria**:
-- [ ] HealthVector model with coordinates and zone/shelter relations
-- [ ] CRUD with role protection (ADMIN, COORDINATOR, OPERATOR)
-- [ ] List supports filtering by zone, shelter, risk_level, vector_type
-- [ ] Validators check coordinate ranges and required fields
+- [ ] Enum vector_type literal del PDF.
+- [ ] Enum status con 3 valores (HU-25 CA2).
+- [ ] CRUD protegido ADMIN/COORDINADOR_LOGISTICA.
+- [ ] `PUT /:id/status` permite actualizar estado + actions_taken (HU-25 CA3).
+- [ ] Filtrable por zone, shelter, risk_level, vector_type, status.
+- [ ] Auditoría registra cambios de estado (HU-25 CA4).
 
 ---
 
-### Issue #26 — Relocation model and CRUD
-**Labels**: `feature`, `relocations`, `step-10`
+### Issue #27 — Relocations
+**Labels**: `feature`, `relocations`, `step-11`
 **Depends on**: #11, #12
-**Description**: Define `Relocation` model (family_id FK, origin_shelter_id FK, destination_shelter_id FK, type enum: TEMPORARY/PERMANENT, relocation_date DateTime, reason String, authorized_by FK to User). Migrate. Implement `POST /relocations` (creates relocation, updates family shelter_id, adjusts occupancy on both shelters) and `GET /relocations` (list with filters).
+
+Modelo `Relocation` (family_id FK, origin_shelter_id FK, destination_shelter_id FK, type TEMPORARY/PERMANENT, relocation_date, reason, authorized_by FK User).
+
+`POST /relocations` en transacción:
+1. Valida destino tiene capacidad (current_occupancy + members <= max_capacity).
+2. Crea Relocation.
+3. Actualiza family.shelter_id.
+4. Decrementa origen, incrementa destino.
 
 **Acceptance Criteria**:
-- [ ] Relocation model with family and shelter relations
-- [ ] Creating a relocation updates family.shelter_id to destination
-- [ ] Origin shelter occupancy decremented, destination incremented
-- [ ] Destination shelter occupancy cannot exceed max_capacity
-- [ ] List supports filtering by family, shelter, type, date range
+- [ ] Transacción atómica.
+- [ ] Rechaza si destino excede capacidad (HU-24 CA3).
+- [ ] Queda en historial inmutable (audit_logs).
+- [ ] Filtrable por family, shelter, type, date range.
 
 ---
 
-## Step 11: Map and Reports
+## Paso 12: Auditoría inmutable
 
-### Issue #27 — Map module: geolocation endpoints
-**Labels**: `feature`, `geo`, `map`, `step-11`
-**Depends on**: #11, #15, #12, #25
-**Description**: Implement map endpoints that aggregate geolocated data:
-- `GET /map/shelters` — All shelters with coordinates, occupancy, and capacity
-- `GET /map/warehouses` — All warehouses with coordinates and stock level percentage
-- `GET /map/families` — Families with coordinates, status, and priority_score only (no personal data)
-- `GET /map/vectors` — Geolocated health vectors with risk level
-- `GET /map/zone/:id` — All geolocated entities within a specific zone
-- `GET /map/recent-deliveries` — Delivery points from last 7 days with coordinates
+### Issue #28 — AuditLog + middleware 🆕
+**Labels**: `feature`, `audit`, `priority: high`, `step-12`
+**Depends on**: #9.1
+
+Modelo `AuditLog` (id, action, module, entity, entity_id, user_id FK, before JSON, after JSON, ip_address, user_agent, created_at).
+
+**Middleware `audit.middleware.ts`**: se ejecuta al final de cada controlador de mutación exitoso. Captura el payload, el resultado y los datos previos (si aplica), y hace INSERT en `audit_logs`. Registra IP (`req.ip`) y user-agent.
+
+**Endpoint `GET /audit`** solo FUNCIONARIO_CONTROL/ADMIN. Filtros: user_id, module, action, date range (HU-31 CA3).
+
+**Permisos SQL**: revocar UPDATE y DELETE sobre `audit_logs` al rol de BD usado por la app (RNF-09, CV-11). Documentado en migración.
 
 **Acceptance Criteria**:
-- [ ] All map endpoints return GeoJSON-compatible coordinate data
-- [ ] Family endpoint excludes sensitive data (names, documents)
-- [ ] Zone endpoint aggregates all entity types within the zone
-- [ ] Recent deliveries filtered to last 7 days
-- [ ] Endpoints are read-only, accessible to all authenticated roles
+- [ ] Tabla audit_logs sin SET/DELETE permitido (usar migration para revocar).
+- [ ] Middleware registra todas las mutaciones (POST/PUT/DELETE).
+- [ ] before/after en JSON con diff utilizable.
+- [ ] IP y user-agent capturados.
+- [ ] GET protegido a 2 roles únicamente.
+- [ ] Entradas inmutables verificadas: test intentando UPDATE manual debe fallar.
 
 ---
 
-### Issue #28 — Reports module: coverage and inventory reports
-**Labels**: `feature`, `reports`, `step-11`
+## Paso 13: Mapa y reportes con export
+
+### Issue #29 — Mapa + endpoint "zonas sin entregas"
+**Labels**: `feature`, `geo`, `map`, `step-13`
+**Depends on**: #11, #15, #12, #26
+
+Endpoints:
+- `GET /map/shelters` — coords, ocupación, capacidad.
+- `GET /map/warehouses` — coords, % stock.
+- `GET /map/families` — coords + estado + priority_score (sin datos personales).
+- `GET /map/vectors` — coords + risk_level + status.
+- `GET /map/zone/:id` — todas las entidades geolocalizadas de la zona.
+- `GET /map/recent-deliveries` — últimos 7 días.
+- `GET /map/zones-without-deliveries` — zonas con cero entregas (HU-30 CA1).
+
+**Acceptance Criteria**:
+- [ ] Formato GeoJSON-compatible.
+- [ ] Family endpoint excluye nombres y documentos.
+- [ ] Zone endpoint agrega todas las entidades.
+- [ ] Recent deliveries filtradas a 7 días.
+- [ ] Zones-without-deliveries incluye población y # familias registradas (HU-30 CA5).
+- [ ] Accesible a todos los roles autenticados.
+
+---
+
+### Issue #30 — Reportes base
+**Labels**: `feature`, `reports`, `step-13`
 **Depends on**: #16, #24
-**Description**: Implement:
-- `GET /reports/coverage` — Percentage of families with active coverage vs total, broken down by zone
-- `GET /reports/inventory` — Current stock levels across all warehouses, categorized by resource type
-- `GET /reports/unattended-families` — Families with no delivery or expired coverage, sorted by priority_score
+
+- `GET /reports/coverage` — % con cobertura vigente vs total, por zona.
+- `GET /reports/inventory` — stock por bodega y categoría.
+- `GET /reports/unattended-families` — sin entrega o cobertura expirada, ordenadas por priority_score desc (HU-28 CA3).
 
 **Acceptance Criteria**:
-- [ ] Coverage report shows covered/uncovered counts and percentages per zone
-- [ ] Inventory report aggregates quantities and weights by category
-- [ ] Unattended families sorted by priority descending
-- [ ] Reports support date range filters where applicable
-- [ ] Response format consistent across all report endpoints
+- [ ] Coverage incluye cubiertos/no cubiertos/% por zona.
+- [ ] Inventario agrega por categoría y por bodega.
+- [ ] Unattended con filtros de zona y fecha.
+- [ ] Formato consistente entre reportes.
 
 ---
 
-### Issue #29 — Reports module: donations, deliveries by zone, and dashboard
-**Labels**: `feature`, `reports`, `step-11`
-**Depends on**: #19, #24, #28
-**Description**: Implement:
-- `GET /reports/donations-by-type` — Total donations grouped by donor type, with monetary and in-kind totals
-- `GET /reports/deliveries-by-zone` — Delivery counts and total weight distributed per zone
-- `GET /reports/dashboard` — Aggregated key metrics: total families registered, total aided, total pending, warehouse utilization %, total donations received, total kg distributed, active health vectors count
+### Issue #31 — Reportes avanzados + export PDF/Excel + dashboard + trazabilidad 🆕
+**Labels**: `feature`, `reports`, `priority: high`, `step-13`
+**Depends on**: #19, #24, #30
+
+Endpoints:
+- `GET /reports/donations-by-type` — agrupado por tipo de donante.
+- `GET /reports/deliveries-by-zone` — entregas y peso total por zona.
+- `GET /reports/dashboard` — métricas clave en un solo response.
+- `GET /reports/traceability` — rastrea recurso desde donante → bodega → entrega → familia (HU-29 CA1).
+
+**Export**: cada endpoint acepta `?format=json|pdf|xlsx`. Usar `pdfkit` y `exceljs` en backend. Export incluye filtros aplicados.
 
 **Acceptance Criteria**:
-- [ ] Donations grouped by donor type with subtotals
-- [ ] Deliveries aggregated by zone with counts and weights
-- [ ] Dashboard returns all key metrics in a single response
-- [ ] Dashboard queries are optimized (avoid N+1 queries)
-- [ ] All reports accessible to ADMIN, COORDINATOR, and VIEWER roles
+- [ ] Donations agrupadas por donor type con subtotales.
+- [ ] Deliveries agregadas por zona con count y weight.
+- [ ] Dashboard optimizado (evita N+1).
+- [ ] Todos los reports accesibles a ADMIN/COORDINADOR_LOGISTICA/FUNCIONARIO_CONTROL; operador ve su propio dashboard.
+- [ ] `?format=pdf` devuelve un PDF descargable; `?format=xlsx` un .xlsx (HU-28 CA4, HU-29 CA5).
+- [ ] Trazabilidad: dado un donation_id o resource_type, lista toda la cadena hasta la familia beneficiaria.
+- [ ] Filtros por fecha, donor type, zona en trazabilidad (HU-29 CA3).
 
 ---
 
-## Step 12: Testing and Documentation
+## Paso 14: PWA + offline + sincronización
 
-### Issue #30 — Unit and integration tests + test seeds
-**Labels**: `testing`, `step-12`
-**Depends on**: #20, #23, #24
-**Description**: Write tests:
-- **Unit tests** (`server/tests/unit/`):
-  - `prioritization.test.js` — Score calculation with various family compositions
-  - `delivery.test.js` — Eligibility checks, ration calculations
-  - `inventory.test.js` — Capacity validation, weight calculations
-- **Integration tests** (`server/tests/integration/`):
-  - `auth.test.js` — Register, login, token validation, role protection
-  - `delivery-flow.test.js` — End-to-end: create donation -> verify inventory -> create delivery -> verify stock decremented -> verify priority recalculated -> attempt duplicate (should fail)
-- `server/prisma/seed.js` — Enhance seed with comprehensive test/demo data including families, donors, resource types, and sample deliveries (using real Monteria coordinates)
+### Issue #32 — PWA + Service Worker + IndexedDB + /sync endpoint 🆕
+**Labels**: `feature`, `pwa`, `offline`, `priority: high`, `step-14`
+**Depends on**: #12, #22, #24
+
+**Frontend**:
+- `vite-plugin-pwa` configurado, manifest.webmanifest, iconos 192/512/maskable.
+- Service Worker con estrategias: NetworkFirst (HTML, API GET idempotentes), StaleWhileRevalidate (assets).
+- `src/lib/offlineQueue.ts` con Dexie — store `pending_ops` (entity, payload, client_op_id, created_at, attempts, last_error).
+- `src/lib/syncManager.ts` — flush FIFO con retries exponenciales.
+- `src/context/SyncContext.tsx` — estado `{ status, pendingCount, lastSyncAt }`.
+- `src/components/layout/ConnectionBadge.tsx` — pill visible en navbar.
+- Formularios de censo (HU-04) y entrega (HU-22) funcionan offline: generan `client_op_id`, guardan en IndexedDB, muestran toast "guardado localmente".
+
+**Backend**:
+- `POST /sync` — acepta batch `{ ops: [{ client_op_id, method, url, payload }] }` y los procesa secuencialmente con deduplicación por `client_op_id` sobre tablas que lo soporten (Deliveries, Families, Persons, Relocations).
+- `GET /sync/status` — última marca aplicada por cliente.
+- Middleware `idempotency.middleware.ts` — al ver `Idempotency-Key` header en `POST /deliveries` o `POST /families`, busca por ese op_id; si existe, retorna el resultado anterior sin duplicar.
 
 **Acceptance Criteria**:
-- [ ] `npm test` runs all tests successfully
-- [ ] Prioritization tests cover: new family, max days cap, all vulnerability factors, zero score edge case
-- [ ] Delivery tests cover: eligible family, duplicate prevention, insufficient stock, coverage_days < 3
-- [ ] Integration auth test covers full login/register/protected-route flow
-- [ ] Integration delivery flow covers donation-to-delivery pipeline
-- [ ] Seed creates realistic demo data for presentations
-- [ ] Test coverage reported via Jest
+- [ ] App instala como PWA (Chrome "Add to Home Screen").
+- [ ] Offline shell funciona (abrir app sin red muestra cache).
+- [ ] Desconectar red → registrar familia → reconectar → sincroniza y aparece en listado.
+- [ ] Mismo flujo para entregas.
+- [ ] `Idempotency-Key` previene duplicados si se reintenta.
+- [ ] ConnectionBadge refleja estado y contador de pendientes.
+- [ ] Tests E2E con jsdom o Playwright (opcional).
+- [ ] Capacidad: IndexedDB soporta al menos 200 ops pendientes sin degradación.
 
 ---
 
-## Issue Dependency Graph
+## Paso 15: Tests y datos de demo
+
+### Issue #33 — Tests unitarios + integración + seeds de demo
+**Labels**: `testing`, `step-15`
+**Depends on**: #9.1, #20, #24, #25, #28, #32
+
+**Tests unitarios** (`server/tests/unit/`):
+- `prioritization.test.ts` — cálculo con varias composiciones, tope de días, breakdown, lectura desde scoring_config.
+- `delivery.test.ts` — elegibilidad, ración, coverage < 3.
+- `inventory.test.ts` — capacidad, ajustes con motivo.
+- `auth.test.ts` — lockout tras 5 fallos, usuario desactivado, password_must_change.
+
+**Tests de integración** (`server/tests/integration/`):
+- `auth.test.ts` — register, login, /me, /change-password, lockout, role protection.
+- `delivery-flow.test.ts` — donation → inventory → plan → execute → deliveries → inventory decrementado → priority recalculado → intento duplicado bloqueado → excepción autorizada.
+- `audit.test.ts` — mutación crea audit entry; intento UPDATE manual falla.
+- `sync.test.ts` — batch de ops con Idempotency-Key no duplica.
+
+**Seed de demo** (`server/prisma/seed.ts` ampliado):
+- Admin + usuarios por cada rol.
+- Zonas y refugios reales de Montería.
+- Bodegas sumando 20.000 kg.
+- Catálogo completo de recursos.
+- 30 familias variadas con consentimiento.
+- 5 donantes y donaciones representativas.
+- Plan de distribución ejemplo con algunas entregas ejecutadas.
+- scoring_config con pesos por defecto.
+- alert_thresholds por recurso.
+
+**Acceptance Criteria**:
+- [ ] `npm test` desde raíz ejecuta todos los tests.
+- [ ] Coverage reportado por Jest.
+- [ ] Seed crea entorno de demo reproducible.
+- [ ] Tests cubren CV-01 a CV-14 del PDF.
+- [ ] Integration tests pasan con BD de test aislada.
+
+---
+
+## Dependency Graph
 
 ```
-#1 ─┬─ #2 ─── #3 ─┬─ #7 ─── #8 ─── #9 ──┬── #10 ─── #11
-    │              │                       │     │       │
-    └──── #4 ──────┴─ #5                   │     │       │
-          │                                │     │       │
-          └─── #6 ─────────────────────────┘     │       │
-                                                 │       │
-    #10 ────┬── #12 ─── #13 ─── #14             │       │
-            │    │                               │       │
-            │    └──── #20 ─── #21              │       │
-            │    │                               │       │
-            ├── #15 ─── #16 ─── #17             │       │
-            │    │                               │       │
-            │    └──────┬── #19                  │       │
-            │           │                        │       │
-            ├── #18 ────┘                        │       │
-            │                                    │       │
-            ├── #25 ────────────────────────────┘       │
-            │                                            │
-            └── #26 ────────────────────────────────────┘
-                 │
-    #22 ─── #23 ─── #24
-                      │
-    #27 ──────────────┤
-    #28 ──────────────┤
-    #29 ──────────────┤
-    #30 ──────────────┘
+#1 → #2 → #3 ┬→ #4 → #5 → #6
+             │
+             └→ #7 → #8 → #9 → #9.1
+                              │
+                              ├→ #10 → #11
+                              │    │
+                              │    └→ #12 → #13 → #14
+                              │         │
+                              │         └→ #20 → #21
+                              │              │
+                              │              ├→ #22 → #23 → #24 → #25
+                              │              │
+                              ├→ #15 → #16 → #17
+                              │    │    │
+                              │    │    └→ #19
+                              │    │
+                              │    └→ #18
+                              │
+                              ├→ #26 (depends on #10)
+                              │
+                              ├→ #27 (depends on #11, #12)
+                              │
+                              ├→ #28 (AuditLog middleware — cross-cutting)
+                              │
+                              ├→ #29 (#11, #15, #12, #26)
+                              │
+                              ├→ #30 → #31
+                              │
+                              ├→ #32 (#12, #22, #24)
+                              │
+                              └→ #33 (tests — al final)
 ```
 
-## Summary by Step
+---
 
-| Step | Issues | Description |
+## Renumeración final
+
+| # | Título | Estado |
+|---|--------|--------|
+| 1 | Scaffolding y dependencias | ✅ |
+| 2 | Env y git config | ✅ |
+| 3 | Prisma init y config | ✅ |
+| 4 | Express app.ts | ✅ |
+| 5 | Server entry index.ts | ✅ |
+| 6 | Utils + error handler | ✅ |
+| 7 | User model + migración | ✅ |
+| 8 | Auth service/routes | ✅ |
+| 9 | Auth + role middlewares + seed | ✅ |
+| 9.1 | Adaptación auth a requerimientos finales | 🆕 |
+| 10 | Zonas + seed Montería | evolución |
+| 11 | Refugios + alerta 90% | evolución |
+| 12 | Familias + PrivacyConsent | evolución |
+| 13 | Personas | evolución |
+| 14 | Sync composición ↔ puntaje | evolución |
+| 15 | Bodegas (85%/100%) | evolución |
+| 16 | Tipos recurso + inventario + ajustes | evolución |
+| 17 | Alertas configurables + nearest | evolución |
+| 18 | Donantes (nuevo enum, contact) | evolución |
+| 19 | Donaciones transaccional | evolución |
+| 20 | ScoringConfig + priorización | 🆕 |
+| 21 | Endpoints priorización | evolución |
+| 22 | Delivery (ENT, estados ES, excepción) | evolución |
+| 23 | Elegibilidad + ración + excepción | evolución |
+| 24 | Creación + batch + Idempotency-Key | evolución |
+| 25 | Planes de distribución | 🆕 |
+| 26 | Vectores con estado | evolución |
+| 27 | Traslados | evolución |
+| 28 | AuditLog + middleware | 🆕 |
+| 29 | Mapa + zonas sin entregas | evolución |
+| 30 | Reportes base | evolución |
+| 31 | Reportes avanzados + export + trazabilidad | 🆕 |
+| 32 | PWA + offline + sync | 🆕 |
+| 33 | Tests + seeds de demo | evolución |
+
+---
+
+## Trazabilidad con el PDF de requerimientos
+
+### RF → Issue
+
+| RF | Descripción breve | Issue(s) |
+|----|-------------------|----------|
+| RF-01 | Registrar familias con ubicación | #12 |
+| RF-02 | Registrar personas con condición especial | #13 |
+| RF-03 | Código único FAM-2026-NNNNN | #12 |
+| RF-04 | Puntaje de prioridad | #20, #21 |
+| RF-05 | Actualizar familia | #12, #14 |
+| RF-06 | Consultar y buscar familias | #12 |
+| RF-07 | Verificar cobertura vigente | #23 |
+| RF-08 | Registrar zonas | #10 |
+| RF-09 | Registrar refugios | #11 |
+| RF-10 | Registrar bodegas | #15 |
+| RF-11 | Bodega más cercana | #17 |
+| RF-12 | Mapa con familias/refugios/bodegas/entregas | #29 |
+| RF-13 | Tipos de recurso | #16 |
+| RF-14 | Consultar inventario por bodega | #16 |
+| RF-15 | Alertas de inventario bajo | #17 |
+| RF-16 | Ajuste manual de inventario | #16 |
+| RF-17 | Resumen general de inventario | #16 |
+| RF-18 | Registrar donantes | #18 |
+| RF-19 | Registrar donación | #19 |
+| RF-20 | Desglose de recursos de donación | #19 |
+| RF-21 | Historial de donaciones por donante | #19 |
+| RF-22 | Plan de distribución priorizado | #25 |
+| RF-23 | Entrega por lote | #24 |
+| RF-24 | Registrar entrega | #24 |
+| RF-25 | Validar cobertura vigente | #23 |
+| RF-26 | Cobertura mínima 3 días | #23 |
+| RF-27 | Descuento automático de inventario | #24 |
+| RF-28 | Registrar ubicación de entrega | #22, #24 |
+| RF-29 | Estados de entrega | #22, #24 |
+| RF-30 | Traslado de familias | #27 |
+| RF-31 | Registrar vectores sanitarios | #26 |
+| RF-32 | Visualizar vectores en mapa | #29 |
+| RF-33 | Reporte de cobertura | #30 |
+| RF-34 | Reporte de trazabilidad | #31 |
+| RF-35 | Zonas sin entregas | #29, #31 |
+| RF-36 | Familias no atendidas | #30 |
+| RF-37 | Donaciones por tipo | #31 |
+| RF-38 | Entregas por zona | #31 |
+| RF-39 | Dashboard con indicadores | #31 |
+| RF-40 | Historial de auditoría inalterable | #28 |
+| RF-41 | Crear/modificar/desactivar usuarios | #9.1 |
+| RF-42 | Credenciales por usuario | #9.1 |
+| RF-43 | Funciones distintas por rol | #9.1 (backend) + frontend RBAC |
+| RF-44 | Cambiar contraseña | #9 / #9.1 |
+
+### HU → Issue
+
+| HU | Título | Issue |
+|----|--------|-------|
+| HU-01 | Gestionar usuarios | #9.1 |
+| HU-02 | Iniciar sesión según rol | #9.1 |
+| HU-03 | Cambiar contraseña propia | #9.1 |
+| HU-04 | Registrar familia en terreno (offline) | #12, #32 |
+| HU-05 | Registrar personas en familia | #13 |
+| HU-06 | Consultar y buscar familias | #12 |
+| HU-07 | Actualizar familia | #12, #14 |
+| HU-08 | Calcular y visualizar puntaje | #20 |
+| HU-09 | Registrar zonas | #10 |
+| HU-10 | Registrar refugios | #11 |
+| HU-11 | Registrar bodegas (85%/100%) | #15 |
+| HU-12 | Bodega más cercana | #17 |
+| HU-13 | Mapa con capas | #29 |
+| HU-14 | Registrar tipos de recurso | #16 |
+| HU-15 | Consultar inventario | #16 |
+| HU-16 | Alertas configurables | #17 |
+| HU-17 | Ajustar inventario con motivo | #16 |
+| HU-18 | Registrar donante | #18 |
+| HU-19 | Registrar donación | #19 |
+| HU-20 | Historial de donaciones | #19 |
+| HU-21 | Plan de distribución | #25 |
+| HU-22 | Registrar entrega individual (offline) | #24, #32 |
+| HU-23 | Prevenir entrega duplicada | #23 |
+| HU-24 | Traslado entre refugios | #27 |
+| HU-25 | Registrar foco sanitario | #26 |
+| HU-26 | Focos en mapa | #29 |
+| HU-27 | Panel de indicadores | #31 |
+| HU-28 | Reporte de cobertura (con export) | #30, #31 |
+| HU-29 | Reporte de trazabilidad (con export) | #31 |
+| HU-30 | Zonas sin entregas | #29, #31 |
+| HU-31 | Historial de auditoría | #28 |
+
+### RN → Issue
+
+| RN | Descripción | Issue(s) |
+|----|-------------|----------|
+| RN-01 | Cobertura mínima 3 días | #23, #24 |
+| RN-02 | Prevención de duplicidad | #23 |
+| RN-03 | Capacidad de bodega | #15, #19 |
+| RN-04 | Priorización configurable | #20 |
+| RN-05 | Descuento automático | #24 |
+| RN-06 | Trazabilidad completa | #31 |
+| RN-07 | Códigos secuenciales | #9.1 (ENT), #12 (FAM), #19 (DON), #25 (PLN) |
+| RN-08 | Recálculo de prioridad | #14, #20, #24 |
+| RN-09 | Aviso de privacidad | #12 |
+| RN-10 | Ubicación requerida | #11, #15 |
+
+### RNF → Issue
+
+| RNF | Descripción | Issue(s) |
+|-----|-------------|----------|
+| RNF-01 | Facilidad de uso (mobile-first, <1h de curva) | FRONTEND-PLAN §4, cross-cutting |
+| RNF-02 | Funcionamiento sin internet | #32 |
+| RNF-03 | Capacidad 50k personas | #33 (perf tests) |
+| RNF-04 | Velocidad <2s | #12, #23 |
+| RNF-05 | Escalabilidad | #15 (indexes), #33 |
+| RNF-06 | Protección de datos personales | #12 (PrivacyConsent) |
+| RNF-07 | Seguridad de acceso (cifrado) | #9.1 (bcrypt + HTTPS) |
+| RNF-08 | Conexiones lentas | #32 |
+| RNF-09 | Registro de acciones inalterable | #28 |
+
+### CV → Issue
+
+| CV | Descripción | Issue(s) |
+|----|-------------|----------|
+| CV-01 | Registrar familias con datos | #12, #13 |
+| CV-02 | Código único consecutivo | #12 |
+| CV-03 | Puntaje calculado correctamente | #20, #33 |
+| CV-04 | No entrega si cobertura vigente | #23 |
+| CV-05 | Inventario se reduce en entregas | #24 |
+| CV-06 | No exceder capacidad bodega | #15, #19 |
+| CV-07 | Reportes muestran trazabilidad | #31 |
+| CV-08 | Funciona sin internet y sincroniza | #32 |
+| CV-09 | Consultas de entrega <2s | #23 |
+| CV-10 | Cada rol ve sus funciones | #9.1 + frontend RBAC |
+| CV-11 | Registro de acciones no modificable | #28 |
+| CV-12 | Soporta 50k personas | #33 |
+| CV-13 | Zonas sin entregas identificables | #29 |
+| CV-14 | Vectores visualizables en mapa | #29 |
+
+---
+
+## Resumen por paso
+
+| Paso | Issues | Descripción |
 |------|--------|-------------|
-| 1 | #1, #2, #3 | Project initialization |
-| 2 | #4, #5, #6 | Base infrastructure |
-| 3 | #7, #8, #9 | Authentication |
-| 4 | #10, #11 | Zones and shelters |
-| 5 | #12, #13, #14 | Families and persons |
-| 6 | #15, #16, #17 | Warehouses and inventory |
-| 7 | #18, #19 | Donors and donations |
-| 8 | #20, #21 | Prioritization algorithm |
-| 9 | #22, #23, #24 | Delivery distribution |
-| 10 | #25, #26 | Health vectors and relocations |
-| 11 | #27, #28, #29 | Map and reports |
-| 12 | #30 | Testing and documentation |
+| 1 | #1, #2, #3 | Inicialización |
+| 2 | #4, #5, #6 | Infraestructura base |
+| 3 | #7, #8, #9 | Autenticación v1 |
+| 3.1 | #9.1 | Adaptación auth a requerimientos finales |
+| 4 | #10, #11 | Zonas y refugios |
+| 5 | #12, #13, #14 | Familias + privacy + personas |
+| 6 | #15, #16, #17 | Bodegas e inventario |
+| 7 | #18, #19 | Donantes y donaciones |
+| 8 | #20, #21 | ScoringConfig + priorización |
+| 9 | #22, #23, #24 | Entregas |
+| 10 | #25 | Planes de distribución |
+| 11 | #26, #27 | Salubridad y traslados |
+| 12 | #28 | Auditoría |
+| 13 | #29, #30, #31 | Mapa y reportes |
+| 14 | #32 | PWA + offline |
+| 15 | #33 | Tests + demo |
+
+---
 
 ## Labels Reference
 
-| Label | Meaning |
-|-------|---------|
-| `priority: critical` | Blocks multiple other issues |
-| `priority: high` | Core business logic |
-| `setup` | Project setup and configuration |
-| `infrastructure` | Base architecture |
-| `database` | Schema and migrations |
-| `auth` | Authentication and authorization |
-| `middleware` | Express middlewares |
-| `feature` | New functionality |
-| `census` | Population registration |
-| `inventory` | Warehouse and stock management |
-| `donations` | Donor and donation management |
-| `deliveries` | Aid distribution |
-| `algorithm` | Scoring and calculations |
-| `health` | Sanitary vectors |
-| `relocations` | Family relocations |
-| `geo` | Geolocation features |
-| `map` | Map visualization endpoints |
-| `reports` | Reporting and analytics |
-| `testing` | Tests and test data |
-| `step-N` | Corresponds to plan step N |
+| Label | Significado |
+|-------|-------------|
+| `priority: critical` | Bloquea múltiples issues |
+| `priority: high` | Lógica core del negocio |
+| `setup` | Setup y configuración |
+| `infrastructure` | Arquitectura base |
+| `database` | Schema y migraciones |
+| `migration` | Cambio de schema en issue posterior |
+| `auth` | Autenticación y autorización |
+| `middleware` | Middlewares Express |
+| `feature` | Nueva funcionalidad |
+| `census` | Registro poblacional |
+| `inventory` | Gestión de bodegas |
+| `donations` | Donantes y donaciones |
+| `deliveries` | Distribución |
+| `algorithm` | Cálculos de puntaje |
+| `health` | Vectores sanitarios |
+| `relocations` | Traslados |
+| `geo` | Geolocalización |
+| `map` | Visualización en mapa |
+| `reports` | Reportes y analítica |
+| `audit` | Auditoría inmutable |
+| `pwa` | Progressive Web App |
+| `offline` | Funcionalidad offline |
+| `testing` | Tests y datos |
+| `step-N` | Paso N del plan |
