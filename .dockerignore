@@ -41,8 +41,3 @@ server/tests
 
 # Logs
 *.log
-
-# Docker files themselves
-Dockerfile
-.dockerignore
-docker-entrypoint.sh
