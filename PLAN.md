@@ -25,7 +25,7 @@ El sistema debe:
 ### Seguridad y auditoría
 - **users** — Usuarios del sistema (email único, password_hash, name, role, is_active, failed_login_attempts, locked_until, last_login_at, password_must_change, created_at, updated_at)
 - **audit_logs** — Historial inmutable (action, module, entity, entity_id, user_id, before JSON, after JSON, ip_address, user_agent, created_at). UPDATE/DELETE prohibidos a nivel de BD (permisos SQL).
-- **scoring_config** — Pesos y parámetros configurables de la fórmula de priorización (key, value Float, updated_by FK users, updated_at). Editable por ADMIN / COORDINADOR_LOGISTICA.
+- **scoring_config** — Pesos y parámetros configurables de la fórmula de priorización (key, value Float, updated_by FK users, updated_at). Editable por ADMIN / LOGISTICS_COORDINATOR.
 - **alert_thresholds** — Umbral de stock bajo configurable por recurso (resource_type_id FK, min_quantity, updated_by, updated_at).
 
 ### Geografía y refugios
@@ -33,29 +33,29 @@ El sistema debe:
 - **shelters** — Refugios temporales (name, address, zone_id FK, max_capacity, current_occupancy, type, latitude NOT NULL, longitude NOT NULL)
 
 ### Censo poblacional
-- **families** — Unidades familiares (family_code, head_document, zone_id FK, shelter_id FK opcional, num_members, num_children_under_5, num_adults_over_65, num_pregnant, num_disabled, priority_score Float, priority_score_breakdown JSON, status: ACTIVO/EN_REFUGIO/EVACUADO, latitude opcional, longitude opcional, reference_address opcional)
-- **persons** — Miembros individuales (family_id FK, name, document único, birth_date, gender, relationship: ESPOSO_A/HIJO_A/PADRE_MADRE/HERMANO_A/OTRO, special_conditions[], requires_medication)
+- **families** — Unidades familiares (family_code, head_document, zone_id FK, shelter_id FK opcional, num_members, num_children_under_5, num_adults_over_65, num_pregnant, num_disabled, priority_score Float, priority_score_breakdown JSON, status: ACTIVE/IN_SHELTER/EVACUATED, latitude opcional, longitude opcional, reference_address opcional)
+- **persons** — Miembros individuales (family_id FK, name, document único, birth_date, gender, relationship: SPOUSE/CHILD/PARENT/SIBLING/OTHER, special_conditions[], requires_medication)
 - **privacy_consents** — Aceptaciones del aviso de privacidad (family_id FK, accepted_at, accepted_by_user_id FK users, law_version = "Ley 1581/2012", ip_address)
 
 ### Recursos e inventario
 - **warehouses** — Bodegas físicas (name, address, latitude NOT NULL, longitude NOT NULL, max_capacity_kg, current_weight_kg, status: ACTIVE/INACTIVE, zone_id FK)
 - **resource_types** — Catálogo de tipos de ayuda (name, category: FOOD/BLANKET/MATTRESS/HYGIENE/MEDICATION, unit_of_measure, unit_weight_kg, is_active). Unique (name, category).
 - **inventory** — Stock actual por bodega y recurso (warehouse_id FK, resource_type_id FK, available_quantity, total_weight_kg, batch, expiration_date). Unique (warehouse_id, resource_type_id, batch).
-- **inventory_adjustments** — Historial de ajustes manuales (inventory_id FK, delta Int, reason: MERMA/DANO/DEVOLUCION/CORRECCION, reason_note, user_id FK, created_at)
+- **inventory_adjustments** — Historial de ajustes manuales (inventory_id FK, delta Int, reason: SHRINKAGE/DAMAGE/RETURN/CORRECTION, reason_note, user_id FK, created_at)
 
 ### Donaciones
-- **donors** — Registro de donantes (name, type: PERSONA_NATURAL/EMPRESA/ALCALDIA/GOBERNACION/ORGANIZACION, contact, tax_id opcional). Unique (name, type).
+- **donors** — Registro de donantes (name, type: INDIVIDUAL/COMPANY/CITY_HALL/GOVERNOR_OFFICE/ORGANIZATION, contact, tax_id opcional). Unique (name, type).
 - **donations** — Eventos de donación (donation_code, donor_id FK, destination_warehouse_id FK, donation_type: IN_KIND/MONETARY/MIXED, monetary_amount, date)
 - **donation_details** — Recursos de donaciones en especie (donation_id FK, resource_type_id FK, quantity, weight_kg)
 
 ### Distribución
-- **distribution_plans** — Plan priorizado (plan_code `PLN-2026-NNNNN`, created_by FK users, status: PROGRAMADA/EN_EJECUCION/COMPLETADA/CANCELADA, scope: GLOBAL/ZONA/REFUGIO/LOTE, scope_id opcional, notes, created_at)
-- **distribution_plan_items** — Asignaciones del plan (plan_id FK, family_id FK, source_warehouse_id FK, target_coverage_days, status: PENDIENTE/ENTREGADO/SIN_ATENDER, delivery_id FK nullable)
-- **deliveries** — Entregas a familias (delivery_code `ENT-2026-NNNNN`, family_id FK, source_warehouse_id FK, plan_item_id FK opcional, delivery_date, delivered_by FK, received_by_document, coverage_days CHECK >= 3, status: PROGRAMADA/EN_CURSO/ENTREGADA, delivery_latitude, delivery_longitude, exception_reason opcional, exception_authorized_by FK users opcional, client_op_id único opcional)
+- **distribution_plans** — Plan priorizado (plan_code `PLN-2026-NNNNN`, created_by FK users, status: SCHEDULED/IN_PROGRESS/COMPLETED/CANCELLED, scope: GLOBAL/ZONE/SHELTER/BATCH, scope_id opcional, notes, created_at)
+- **distribution_plan_items** — Asignaciones del plan (plan_id FK, family_id FK, source_warehouse_id FK, target_coverage_days, status: PENDING/DELIVERED/UNATTENDED, delivery_id FK nullable)
+- **deliveries** — Entregas a familias (delivery_code `DEL-2026-NNNNN`, family_id FK, source_warehouse_id FK, plan_item_id FK opcional, delivery_date, delivered_by FK, received_by_document, coverage_days CHECK >= 3, status: SCHEDULED/IN_PROGRESS/DELIVERED, delivery_latitude, delivery_longitude, exception_reason opcional, exception_authorized_by FK users opcional, client_op_id único opcional)
 - **delivery_details** — Ítems entregados (delivery_id FK, resource_type_id FK, quantity, weight_kg)
 
 ### Operaciones
-- **health_vectors** — Vectores sanitarios (vector_type: AGUA_CONTAMINADA/INSECTOS/ROEDORES/OTRO, risk_level: LOW/MEDIUM/HIGH/CRITICAL, status: ACTIVO/EN_ATENCION/RESUELTO, actions_taken, latitude, longitude, zone_id FK opcional, shelter_id FK opcional, reported_date, reported_by FK)
+- **health_vectors** — Vectores sanitarios (vector_type: CONTAMINATED_WATER/INSECTS/RODENTS/OTHER, risk_level: LOW/MEDIUM/HIGH/CRITICAL, status: ACTIVE/IN_PROGRESS/RESOLVED, actions_taken, latitude, longitude, zone_id FK opcional, shelter_id FK opcional, reported_date, reported_by FK)
 - **relocations** — Traslados de familia (family_id FK, origin_shelter_id FK, destination_shelter_id FK, type: TEMPORARY/PERMANENT, relocation_date, reason, authorized_by FK)
 
 ---
@@ -102,11 +102,11 @@ El sistema debe:
 ### 9. Deliveries (`/deliveries`)
 - POST crear entrega (valida elegibilidad, stock, cobertura mínima, decrementa inventario en transacción). Acepta header `Idempotency-Key` para sincronización offline.
 - POST `/batch` — entrega directa a las top N familias prioritarias (independiente del plan).
-- POST `/exception` — entrega anticipada (solo COORDINADOR_LOGISTICA, con justificación — HU-23 CA5).
-- GET lista + GET `/:id` + PUT `/:id/status` (PROGRAMADA → EN_CURSO → ENTREGADA).
+- POST `/exception` — entrega anticipada (solo LOGISTICS_COORDINATOR, con justificación — HU-23 CA5).
+- GET lista + GET `/:id` + PUT `/:id/status` (SCHEDULED → IN_PROGRESS → DELIVERED).
 
 ### 10. Distribution Plans (`/distribution-plans`) — HU-21
-- POST `/` — genera plan priorizado para scope (GLOBAL/ZONA/REFUGIO/LOTE). Incluye familias elegibles, las ordena por puntaje, asigna recursos respetando stock y cobertura mínima, marca sin atender si hay insuficiencia. Guarda como PROGRAMADA.
+- POST `/` — genera plan priorizado para scope (GLOBAL/ZONE/SHELTER/BATCH). Incluye familias elegibles, las ordena por puntaje, asigna recursos respetando stock y cobertura mínima, marca sin atender si hay insuficiencia. Guarda como SCHEDULED.
 - GET lista + GET `/:id` (con items).
 - POST `/:id/execute` — materializa entregas desde el plan.
 - PUT `/:id/cancel`.
@@ -116,7 +116,7 @@ El sistema debe:
 - Lee pesos desde `scoring_config`; respuesta incluye `priority_score_breakdown` por factor (HU-08 CA2).
 
 ### 12. Scoring Config (`/scoring-config`) — HU-08 CA5
-- GET (autenticado) + PUT (ADMIN / COORDINADOR_LOGISTICA)
+- GET (autenticado) + PUT (ADMIN / LOGISTICS_COORDINATOR)
 - Al actualizar, invalida caché del servicio de priorización.
 
 ### 13. Reports (`/reports`)
@@ -125,7 +125,7 @@ El sistema debe:
 - `/traceability` (HU-29): rastrea recurso desde donante → bodega → entrega → familia.
 
 ### 14. Health Vectors (`/health/vectors`)
-- CRUD + PUT `/:id/status` (ACTIVO/EN_ATENCION/RESUELTO — HU-25 CA3)
+- CRUD + PUT `/:id/status` (ACTIVE/IN_PROGRESS/RESOLVED — HU-25 CA3)
 - Filtrable por zona, refugio, risk_level, vector_type, status.
 
 ### 15. Relocations (`/relocations`)
@@ -137,7 +137,7 @@ El sistema debe:
 - Family endpoint excluye datos sensibles (solo coordenadas, estado, prioridad).
 
 ### 17. Audit Log (`/audit`) — RF-40, RNF-09
-- GET lista filtrable por usuario, módulo, rango de fechas. Solo accesible a FUNCIONARIO_CONTROL / ADMIN.
+- GET lista filtrable por usuario, módulo, rango de fechas. Solo accesible a CONTROL_OFFICER / ADMIN.
 - Sin endpoints de mutación. Escritura únicamente por el middleware interno.
 
 ### 18. Sync (`/sync`) — Offline support
@@ -171,12 +171,12 @@ La respuesta de ranking y detalle familia incluye `priority_score_breakdown` con
 ## Key Business Rules
 
 1. **RN-01 — Cobertura mínima**: cada entrega cubre al menos 3 días (0,6 kg/persona/día de alimentos).
-2. **RN-02 — Prevención de duplicidad**: no se entrega ayuda a una familia cuya cobertura anterior no ha expirado. Excepción: autorizada por COORDINADOR_LOGISTICA con justificación.
+2. **RN-02 — Prevención de duplicidad**: no se entrega ayuda a una familia cuya cobertura anterior no ha expirado. Excepción: autorizada por LOGISTICS_COORDINATOR con justificación.
 3. **RN-03 — Capacidad de bodega**: `current_weight_kg` no puede superar `max_capacity_kg`. Alerta al 85%, bloqueo al 100%.
 4. **RN-04 — Priorización**: fórmula configurable en `scoring_config` (pesos editables sin tocar código).
 5. **RN-05 — Descuento automático**: al confirmar entrega, el inventario de la bodega de origen se decrementa en la misma transacción.
 6. **RN-06 — Trazabilidad completa**: todo recurso rastreable desde donante → bodega → entrega → familia (endpoint `/reports/traceability`).
-7. **RN-07 — Códigos secuenciales**: `FAM-2026-NNNNN`, `DON-2026-NNNNN`, `ENT-2026-NNNNN`, `PLN-2026-NNNNN`.
+7. **RN-07 — Códigos secuenciales**: `FAM-2026-NNNNN`, `DON-2026-NNNNN`, `DEL-2026-NNNNN`, `PLN-2026-NNNNN`.
 8. **RN-08 — Recálculo de prioridad**: al crear entrega, al cambiar composición del hogar, o bajo petición manual del coordinador.
 9. **RN-09 — Aviso de privacidad**: toda creación de familia requiere `privacy_consent_accepted=true` (Ley 1581/2012). Se persiste en `privacy_consents`.
 10. **RN-10 — Ubicación requerida**: refugios y bodegas deben registrar latitud/longitud al crearse (NOT NULL). Las familias registran coordenadas opcionalmente.
@@ -222,7 +222,7 @@ SIGAH/
 │   │       ├── AppError.ts
 │   │       ├── asyncHandler.ts
 │   │       ├── pagination.ts
-│   │       ├── codeGenerator.ts          # FAM/DON/ENT/PLN
+│   │       ├── codeGenerator.ts          # FAM/DON/DEL/PLN
 │   │       └── exporters/                # pdf.ts, xlsx.ts
 │   └── tests/
 │       ├── unit/
@@ -299,13 +299,13 @@ Estructura del monolito, `server/` y `client/`, dependencias, Vite proxy, Prisma
 Modelo User, migración, auth.service con bcrypt + JWT, auth y role middlewares, seed admin. **(Issues #7-#9)**
 
 ### Paso 3.1: Adaptación Auth a requerimientos finales
-Migración `add-roles-and-user-fields`: renombra enum `Role` a los 6 valores finales (`ADMIN`, `CENSADOR`, `OPERADOR_ENTREGAS`, `COORDINADOR_LOGISTICA`, `FUNCIONARIO_CONTROL`, `REGISTRADOR_DONACIONES`), añade campos a User (name, is_active, failed_login_attempts, locked_until, last_login_at, password_must_change). Validator password >= 8 caracteres. Login con lockout tras 5 intentos. Seed actualiza name. Constantes: prefijo `ENT`, alerta 85%. **(Issue #9.1)**
+Migración `add-roles-and-user-fields`: renombra enum `Role` a los 6 valores finales (`ADMIN`, `CENSUS_TAKER`, `DELIVERY_OPERATOR`, `LOGISTICS_COORDINATOR`, `CONTROL_OFFICER`, `DONATION_REGISTRAR`), añade campos a User (name, is_active, failed_login_attempts, locked_until, last_login_at, password_must_change). Validator password >= 8 caracteres. Login con lockout tras 5 intentos. Seed actualiza name. Constantes: prefijo `DEL`, alerta 85%. **(Issue #9.1)**
 
 ### Paso 4: Zonas y refugios
 Modelos Zone, Shelter (coordenadas NOT NULL en Shelter). CRUD. Alerta de ocupación >90% en refugios. Seeds con zonas reales de Montería. **(Issues #10-#11)**
 
 ### Paso 5: Familias, personas y consentimiento de privacidad
-Modelos Family, Person, PrivacyConsent. Estado familia = ACTIVO/EN_REFUGIO/EVACUADO. POST /families exige consentimiento. Código secuencial FAM. Triggers de composición que recalculan puntaje. **(Issues #12-#14)**
+Modelos Family, Person, PrivacyConsent. Estado familia = ACTIVE/IN_SHELTER/EVACUATED. POST /families exige consentimiento. Código secuencial FAM. Triggers de composición que recalculan puntaje. **(Issues #12-#14)**
 
 ### Paso 6: Bodegas, recursos e inventario
 Modelos Warehouse (coordenadas NOT NULL), ResourceType (con is_active), Inventory, InventoryAdjustment, AlertThreshold. Ajustes manuales con motivo obligatorio. Alertas configurables. Bodega más cercana por Haversine. **(Issues #15-#17)**
@@ -317,10 +317,10 @@ Modelos Donor (nuevo enum, contact requerido, unique compuesto), Donation, Donat
 Tabla scoring_config con seed. `prioritization.service.ts` lee desde BD con caché invalidable. Endpoints GET/PUT /scoring-config. Ranking incluye breakdown. **(Issue #20-#21)**
 
 ### Paso 9: Entregas
-Modelo Delivery (prefijo ENT, estados ES, excepciones), DeliveryDetail. Verificación de elegibilidad. Cálculo de ración mínima. Creación transaccional con Idempotency-Key. Entrega por lote. Excepción autorizada por coordinador. **(Issues #22-#24)**
+Modelo Delivery (prefijo DEL, estados EN, excepciones), DeliveryDetail. Verificación de elegibilidad. Cálculo de ración mínima. Creación transaccional con Idempotency-Key. Entrega por lote. Excepción autorizada por coordinador. **(Issues #22-#24)**
 
 ### Paso 10: Planes de distribución
-Modelos DistributionPlan, DistributionPlanItem. Generación priorizada con scope (GLOBAL/ZONA/REFUGIO/LOTE). Estados PROGRAMADA/EN_EJECUCION/COMPLETADA/CANCELADA. Ejecución que materializa entregas. **(Issue #25)**
+Modelos DistributionPlan, DistributionPlanItem. Generación priorizada con scope (GLOBAL/ZONE/SHELTER/BATCH). Estados SCHEDULED/IN_PROGRESS/COMPLETED/CANCELLED. Ejecución que materializa entregas. **(Issue #25)**
 
 ### Paso 11: Salubridad y traslados
 Modelos HealthVector (con status y vector_type literal), Relocation. PUT /status para vectores. Traslados ajustan ocupación origen/destino. **(Issues #26-#27)**
@@ -352,5 +352,5 @@ Tests unitarios (priorización, elegibilidad, capacidad, lockout), tests de inte
 9. **Exports**: cada reporte descarga correctamente PDF y Excel.
 10. **RBAC**: los 6 roles ven solo las acciones que les corresponden según la matriz RBAC (FRONTEND-PLAN §7).
 11. **Capacidad bodega**: intentar cargar donación o ajuste que exceda `max_capacity_kg` debe fallar con 400.
-12. **Duplicidad entrega**: segunda entrega a familia con cobertura vigente falla con 409, a menos que COORDINADOR_LOGISTICA use `/deliveries/exception` con justificación.
+12. **Duplicidad entrega**: segunda entrega a familia con cobertura vigente falla con 409, a menos que LOGISTICS_COORDINATOR use `/deliveries/exception` con justificación.
 13. **Performance**: consulta `GET /families/search?q=X` responde en <2s con 12.000 familias (RNF-04).
