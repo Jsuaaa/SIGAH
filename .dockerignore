@@ -1,0 +1,48 @@
+# Dependencies (re-installed inside container)
+node_modules
+**/node_modules
+
+# Git
+.git
+.gitignore
+.gitattributes
+
+# Env files — use Coolify env vars instead, never bake secrets into the image
+.env
+.env.*
+
+# Build outputs (rebuilt inside container)
+client/dist
+server/dist
+**/*.tsbuildinfo
+
+# OS junk
+.DS_Store
+Thumbs.db
+
+# Editor / IDE
+.vscode
+.idea
+*.swp
+*.swo
+
+# Docs (not needed in runtime image)
+*.md
+
+# GitHub metadata
+.github
+
+# Tests (not run in production image)
+**/coverage
+server/tests
+
+# Claude project files
+.claude
+
+# Logs
+*.log
+
+# Docker files themselves
+Dockerfile
+.dockerignore
+docker-entrypoint.sh

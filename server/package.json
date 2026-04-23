@@ -2,16 +2,18 @@
   "name": "sigah-backend",
   "version": "1.0.0",
   "description": "SIGAH - Humanitarian Aid Management System for Monteria",
-  "main": "src/index.js",
+  "main": "src/index.ts",
   "scripts": {
-    "start": "node src/index.js",
-    "dev": "npx nodemon src/index.js",
-    "test": "jest --verbose --passWithNoTests"
+    "start": "tsx src/index.ts",
+    "dev": "tsx watch src/index.ts",
+    "test": "jest --verbose --passWithNoTests",
+    "typecheck": "tsc --noEmit"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@prisma/adapter-pg": "^7.7.0",
     "@prisma/client": "^7.7.0",
     "bcrypt": "^6.0.0",
     "cors": "^2.8.6",
@@ -22,10 +24,21 @@
     "jsonwebtoken": "^9.0.3",
     "morgan": "^1.10.1"
   },
+  "prisma": {
+    "seed": "tsx prisma/seed.ts"
+  },
   "devDependencies": {
+    "@types/bcrypt": "^6.0.0",
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.6",
+    "@types/jsonwebtoken": "^9.0.10",
+    "@types/morgan": "^1.9.10",
+    "@types/node": "^25.6.0",
     "jest": "^30.3.0",
     "nodemon": "^3.1.14",
     "prisma": "^7.7.0",
-    "supertest": "^7.2.2"
+    "supertest": "^7.2.2",
+    "tsx": "^4.21.0",
+    "typescript": "^6.0.2"
   }
 }

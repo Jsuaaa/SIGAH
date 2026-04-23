@@ -1,1 +1,34 @@
-node_modules
+# Dependencies
+node_modules/
+
+# Environment variables
+.env
+.env.development
+.env.production
+.env.local
+.env.*.local
+
+# Build output
+client/dist/
+server/dist/
+
+# Prisma (SQLite dev files)
+server/prisma/*.db
+server/prisma/*.db-journal
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+
+# Testing
+coverage/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.sw?

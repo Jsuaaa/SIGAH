@@ -2,342 +2,333 @@
 
 ## Context
 
-The SIGAH system is a monolith — both backend (Express API) and frontend (React SPA) live in the same repository under `SIGAH/server/` and `SIGAH/client/` respectively. The backend (PLAN.md) defines 14 REST API modules, 16 database tables, and business rules for managing humanitarian aid after the 2026 Monteria flood. This plan defines the complete frontend that consumes that API: every module, every view, every field, and the architecture to tie it together. In production, Express serves both the API (`/api/v1`) and the compiled React app. In development, Vite proxies API requests to Express.
+El frontend es una **SPA React mobile-first y PWA offline-capable** que vive en el monolito bajo `SIGAH/client/` y consume la API definida en PLAN.md (18 módulos, 22 tablas, 44 RF, 10 RN, 31 HU). El 90% del trabajo de campo se hace desde smartphone, por lo que la experiencia móvil es prioritaria. El sistema debe funcionar con conectividad pobre o nula: censo y entregas se guardan localmente en IndexedDB y se sincronizan al recuperar conexión.
+
+En producción, Express sirve el bundle compilado y la API. En desarrollo, Vite proxy-a `/api` al backend (3000).
 
 ---
 
 ## 1. Tech Stack
 
-| Layer | Technology | Why |
-|-------|-----------|-----|
-| Build | Vite 6.x | Fast HMR, zero-config React + TS support |
-| UI | React 19.x | Industry standard, massive ecosystem |
-| Language | TypeScript (TSX) | Type safety across components, hooks, API layer, and form schemas |
-| Routing | React Router 7.x | Nested layouts, route guards |
-| Server state | TanStack Query 5.x | Caching, refetching, loading/error states for all API calls |
-| Client state | React Context + useReducer | Auth only — no Redux needed |
-| Styling | TailwindCSS 4.x | Utility-first, responsive by default |
-| Accessible UI | Headless UI 2.x | Modals, dropdowns, dialogs |
-| Forms | TanStack Form 1.x + Zod 3.x | Type-safe form state with `@tanstack/zod-form-adapter` for schema validation |
-| Tables | TanStack Table 8.x | Headless sortable/paginated tables |
-| Charts | Recharts 2.x | Simple React charting (bar, pie, line) |
-| Maps | React Leaflet 5.x + Leaflet 1.9 | Free OSM tiles, markers, popups, clustering |
-| HTTP | Axios 1.x | JWT interceptor, 401 handler |
-| Icons | Lucide React | Clean, tree-shakable icons |
-| Toasts | Sonner 1.x | Minimal notification toasts |
-| Dates | date-fns 3.x | Lightweight date formatting |
+| Capa | Tecnología | Por qué |
+|------|-----------|---------|
+| Build | Vite 8.x | HMR rápido, zero-config React + TS |
+| UI | React 19.x | Estándar industria |
+| Lenguaje | TypeScript strict (TSX) | Type safety total |
+| Routing | React Router 7.x | Layouts anidados, route guards |
+| Server state | TanStack Query 5.x | Caching, persistencia, reintentos offline |
+| Client state | React Context + useReducer | Auth y SyncContext (sin Redux) |
+| Styling | TailwindCSS 4.x | Utility-first, responsive, mobile-first |
+| Accessible UI | Headless UI 2.x | Modales, dropdowns |
+| Forms | TanStack Form 1.x + Zod 4.x | Validación type-safe |
+| Tablas | TanStack Table 8.x | Headless sort/paginación |
+| Charts | Recharts 3.x | Dashboard y reportes |
+| Mapas | React Leaflet 5.x + Leaflet 1.9 | OSM gratis, clustering, markers |
+| HTTP | Axios 1.x | Interceptor JWT, 401 handler, Idempotency-Key |
+| Íconos | Lucide React | Tree-shakable |
+| Toasts | Sonner 2.x | Notificaciones minimalistas |
+| Fechas | date-fns 4.x | Formateo ligero |
+| **PWA** | **vite-plugin-pwa + workbox-window** | Service Worker, manifest, offline shell |
+| **IndexedDB** | **dexie 4.x** | Cola de operaciones offline |
+| **Persist cache** | **@tanstack/react-query-persist-client** | Cache de query entre sesiones |
+| **Exports** | **jspdf + jspdf-autotable, xlsx, file-saver** | Descargar reportes en PDF/Excel |
 
 ---
 
-## 2. Modules (12 frontend modules → 14 backend APIs)
+## 2. Módulos frontend (15 → 18 APIs backend)
 
-| # | Module | Backend APIs | Responsibility |
-|---|--------|-------------|----------------|
-| 1 | Auth | `/auth` | Login, session, password change, user management |
-| 2 | Dashboard | `/reports/dashboard`, `/inventory/alerts` | KPIs and charts |
-| 3 | Families & Persons | `/families`, `/persons`, `/prioritization` | Census CRUD, priority scores |
-| 4 | Zones | `/zones` | Zone CRUD + detail with families/shelters/warehouses |
-| 5 | Shelters | `/shelters` | Shelter CRUD + occupancy |
-| 6 | Warehouses & Inventory | `/warehouses`, `/resource-types`, `/inventory` | Warehouse CRUD, stock, alerts |
-| 7 | Donors & Donations | `/donors`, `/donations` | Donor registry, donation recording |
-| 8 | Deliveries | `/deliveries`, `/prioritization` | Individual/batch delivery, status, ranking |
-| 9 | Reports | `/reports` | Coverage, inventory, donations, deliveries, unattended |
-| 10 | Health Vectors | `/health/vectors` | Sanitary vector CRUD |
-| 11 | Relocations | `/relocations` | Family relocation management |
-| 12 | Map | `/map` | Interactive map with all geolocated entities |
+| # | Módulo | APIs backend | Responsabilidad |
+|---|--------|-------------|-----------------|
+| 1 | Auth | `/auth` | Login con lockout, cambio obligatorio de contraseña, gestión de usuarios |
+| 2 | Dashboard | `/reports/dashboard`, `/inventory/alerts` | KPIs, alertas activas |
+| 3 | Familias y Personas | `/families`, `/persons`, `/prioritization` | Censo offline, consentimiento privacidad, puntaje con desglose |
+| 4 | Zonas | `/zones` | CRUD, detalle con pestañas |
+| 5 | Refugios | `/shelters` | CRUD con mapa, ocupación |
+| 6 | Bodegas e Inventario | `/warehouses`, `/resource-types`, `/inventory`, `/alert-thresholds` | CRUD, ajustes con motivo, alertas configurables |
+| 7 | Donantes y Donaciones | `/donors`, `/donations` | Registro con contact, donación con ítems |
+| 8 | Entregas | `/deliveries`, `/prioritization` | Entrega individual offline, batch, excepciones |
+| 9 | Planes de Distribución | `/distribution-plans` | Generación priorizada, ejecución |
+| 10 | Reportes | `/reports` | Reportes con export PDF/Excel |
+| 11 | Vectores Sanitarios | `/health/vectors` | CRUD con estado |
+| 12 | Traslados | `/relocations` | Relocalización de familias |
+| 13 | Mapa | `/map` | Visualización geoespacial con capas |
+| 14 | Auditoría | `/audit` | Historial inmutable (FUNCIONARIO_CONTROL/ADMIN) |
+| 15 | Configuración | `/scoring-config`, `/alert-thresholds` | Pesos del puntaje y umbrales editables |
 
 ---
 
-## 3. Views (every page in the app)
+## 3. Vistas (páginas de la app)
 
-### 3.0 Auth Module
+### 3.0 Auth
 
-#### Login Page (`/login`)
-- Full-page centered card, no sidebar/navbar
-- Form: Email, Password, "Login" button
-- Error toast on invalid credentials
-- On success: store JWT in localStorage, redirect to `/dashboard`
+#### Login (`/login`)
+- Card centrado full-page, sin navbar/sidebar.
+- Form: Email, Contraseña, botón "Iniciar sesión".
+- Si `locked_until` está activo: mensaje "Cuenta bloqueada, intenta en X:XX" con cuenta regresiva (HU-02 CA5).
+- Si `password_must_change=true`: redirige a `/change-password` obligatorio antes de `/dashboard`.
+- Guarda JWT en localStorage.
 - **API**: `POST /auth/login`
 
-#### Change Password (modal from navbar user menu)
-- Fields: Current password, New password, Confirm new password
+#### Cambiar contraseña (`/change-password` modal o página)
+- Campos: Contraseña actual, Nueva contraseña, Confirmar (mínimo 8 caracteres).
+- Obligatorio cuando `password_must_change=true`.
 - **API**: `PUT /auth/change-password`
 
-#### User Management (`/users`) — admin only
-- Table: Email, Role, Created At, Actions
-- "Register User" button → modal: Email, Password, Role select (admin/coordinator/operator/viewer)
-- **API**: `POST /auth/register`
+#### Usuarios (`/users`) — solo ADMIN
+- Tabla: Nombre, Email, Rol, Estado (activo/desactivado), Último acceso, Acciones.
+- Botón "Registrar Usuario" → modal: Nombre completo, Email, Rol (6 opciones), se genera contraseña temporal.
+- Acciones por fila: Editar rol, Activar/Desactivar (no eliminar), Resetear contraseña temporal.
+- **APIs**: `POST /auth/register`, `PUT /auth/users/:id`, `POST /auth/reset-password/:id`, `GET /auth/users`
 
 ---
 
 ### 3.1 Dashboard (`/dashboard`)
 
-**Row 1 — 6 KPI cards:**
-- Total families registered
-- Families attended (count + % bar)
-- Families unattended (red if > 0)
-- Total deliveries made
-- Inventory weight (current/capacity kg, progress bar)
-- Active inventory alerts (red badge if > 0)
+Pantalla de inicio para COORDINADOR_LOGISTICA y FUNCIONARIO_CONTROL (HU-27 CA3).
 
-**Row 2 — 2 charts:**
-- Bar chart: "Deliveries by Zone" (zone names × delivery count)
-- Pie chart: "Donations by Type" (in_kind/monetary/mixed)
+**Row 1 — 6 KPI cards** (cada uno enlaza a su listado):
+- Total familias registradas
+- Familias atendidas (% barra)
+- Familias pendientes (rojo si >0)
+- Entregas realizadas hoy
+- Peso almacenado vs capacidad (kg, barra)
+- Alertas activas (badge rojo si >0) → enlaza a `/inventory/alerts` y `/audit`
 
-**Row 3 — 2 charts:**
-- Line chart: "Deliveries over time" (last 30 days)
-- Horizontal bar: "Inventory by Category" (food/shelter/hygiene/health)
+**Row 2** — Bar chart "Entregas por Zona" | Pie "Donaciones por Tipo"
 
-**Row 4 — mini table:**
-- "Recent Deliveries" (last 10): Family Code, Zone, Date, Status, Coverage Days
+**Row 3** — Line "Entregas últimos 30 días" | Horizontal bar "Inventario por Categoría"
+
+**Row 4 — Recent Deliveries**: Código, Familia, Zona, Fecha, Estado, Días de cobertura.
 
 **APIs**: `GET /reports/dashboard`, `/reports/coverage`, `/reports/deliveries-by-zone`, `/reports/donations-by-type`, `/reports/unattended-families`, `/inventory/alerts`
 
 ---
 
-### 3.2 Families & Persons
+### 3.2 Familias y Personas
 
-#### Families List (`/families`)
-- Search bar: filter by family_code or head_document
-- Filters: Zone dropdown, Status (active/inactive/relocated), Shelter dropdown
-- Table columns: Family Code, Head Document, Zone, Shelter, Members, Children <5, Priority Score, Status, Last Delivery, Actions (View/Edit/Delete)
-- "Register Family" button
-- Pagination: 20 per page
-- **API**: `GET /families`
+#### Lista (`/families`)
+- Search unificada: código FAM / documento / dirección (HU-06 CA1).
+- Filtros: Zona, Estado (activo/en_refugio/evacuado), Refugio.
+- Columnas: Código, Documento, Zona, Refugio, Miembros, Niños<5, Puntaje, Estado, Última entrega, Acciones.
+- Botón "Registrar Familia" (offline-capable).
+- Paginación 20/página.
+- **API**: `GET /families?q=X&zone_id=&status=&shelter_id=`
 
-#### Family Form (`/families/new`, `/families/:id/edit`)
-- **Basic Info**: Family Code (auto, read-only), Head Document, Zone (select), Shelter (select filtered by zone), Status, Reference Address
-- **Composition**: Members count, Children <5, Adults >65, Pregnant, Disabled
-- **Location** (optional): Latitude, Longitude, embedded map with draggable marker (MapPicker)
-- **API**: `POST /families` or `PUT /families/:id`
+#### Formulario (`/families/new`, `/families/:id/edit`)
+Mobile-first, funciona sin conexión (HU-04 CA4-5).
 
-#### Family Detail (`/families/:id`)
-- Header card: Code, status badge, priority score, zone, shelter, address
-- **Tab 1 — Members**: table (Name, Document, Birth Date, Gender, Relationship, Special Conditions, Requires Medication) + "Add Member" button → modal with person form
-- **Tab 2 — Delivery History**: table (Delivery Code, Date, Warehouse, Items, Coverage Days, Status)
-- **Tab 3 — Eligibility**: card with eligible yes/no, reason, days since last delivery, coverage remaining
-- Mini-map with family location marker (if coordinates exist)
+- **Básico**: código auto, documento representante, zona (select), refugio (select filtrado), estado, dirección.
+- **Composición**: miembros, niños<5, adultos>65, gestantes, discapacitados.
+- **Ubicación (opcional)**: latitud, longitud, mapa con marker arrastrable.
+- **✅ Checkbox obligatorio**: "Acepto el aviso de privacidad conforme a la Ley 1581/2012" con link al texto. No permite guardar si no está marcado (RN-09).
+- Si offline: toast "Guardado localmente, se sincronizará al recuperar conexión".
+- **API**: `POST /families` (con `privacy_consent_accepted=true`) / `PUT /families/:id`
+
+#### Detalle (`/families/:id`)
+- Header: código, estado badge, puntaje, zona, refugio, dirección.
+- **Card "Puntaje de Prioridad"**: valor total + desglose por factor (HU-08 CA2) — miembros, niños<5, adultos>65, gestantes, discapacidad, riesgo zona, días sin ayuda, entregas recibidas.
+- **Tab Miembros**: tabla (Nombre, Documento, Edad, Parentesco, Condiciones especiales, Medicación) + botón "Agregar Miembro".
+- **Tab Historial entregas**: Código, Fecha, Bodega, Ítems, Días cobertura, Estado.
+- **Tab Elegibilidad**: card con elegible sí/no, razón, días desde última entrega, cobertura restante.
+- Mini-mapa con ubicación si hay coordenadas.
 - **APIs**: `GET /families/:id`, `/families/:id/persons`, `/families/:id/deliveries`, `/families/:id/eligibility`
 
-#### Person Search (`/persons/search`)
-- Search input by document number
-- Displays person card: Name, Document, Family Code (link), Birth Date, Gender, Special Conditions
+#### Búsqueda de personas (`/persons/search`)
+- Input por documento.
+- Muestra card: Nombre, Documento, Familia (link), Fecha nacimiento, Condiciones.
 - **API**: `GET /persons/search?document=X`
 
 ---
 
-### 3.3 Zones
+### 3.3 Zonas
 
-#### Zones List (`/zones`)
-- Card grid (not table) — each zone card shows:
-  - Zone name, risk level badge (green/yellow/orange/red), estimated population
-  - Counts: families, shelters, warehouses
-- "Add Zone" button
-- **API**: `GET /zones`
+#### Lista (`/zones`)
+- Grid de cards: nombre, nivel de riesgo (badge por color), población estimada, counts (familias, refugios, bodegas).
+- Botón "Agregar Zona".
 
-#### Zone Form (modal)
-- Fields: Name, Risk Level (select: low/medium/high/critical), Estimated Population, Latitude, Longitude
-- **API**: `POST /zones` or `PUT /zones/:id`
+#### Form (modal)
+- Campos: nombre, nivel de riesgo, población, latitud, longitud.
 
-#### Zone Detail (`/zones/:id`)
-- Header: name, risk badge, population, coordinates
-- **Tab Families**: table (Family Code, Members, Priority Score, Status)
-- **Tab Shelters**: table (Name, Capacity, Occupancy %)
-- **Tab Warehouses**: table (Name, Capacity, Current Weight %)
-- Mini-map with all zone entities
-- **APIs**: `GET /zones/:id/families`, `/zones/:id/shelters`, `/zones/:id/warehouses`, `/map/zone/:id`
+#### Detalle (`/zones/:id`)
+- Header + Tabs (Familias, Refugios, Bodegas) + mini-mapa.
 
 ---
 
-### 3.4 Shelters
+### 3.4 Refugios (`/shelters`)
 
-#### Shelters List (`/shelters`)
-- Table: Name, Address, Zone, Type, Max Capacity, Current Occupancy, Occupancy % (colored progress bar: green <70%, yellow 70-90%, red >90%), Actions
-- Filter: Zone dropdown
-- "Add Shelter" button
-- **API**: `GET /shelters`
-
-#### Shelter Form (modal)
-- Fields: Name, Address, Zone (select), Type (school/sports_center/church/community_center/other), Max Capacity, Latitude, Longitude, embedded map with draggable marker
-- **API**: `POST /shelters` or `PUT /shelters/:id`
-
-#### Update Occupancy (inline quick modal)
-- Current occupancy number input (max = max_capacity)
-- **API**: `PUT /shelters/:id/occupancy`
+- Tabla: Nombre, Dirección, Zona, Tipo, Capacidad, Ocupación, % (barra: verde <70%, amarillo 70-90%, rojo >90% — HU-10 CA2).
+- Filtro por zona.
+- Form modal con mapa obligatorio (HU-10 CA5).
+- Modal de ocupación (valida max_capacity).
 
 ---
 
-### 3.5 Warehouses & Inventory
+### 3.5 Bodegas e Inventario
 
-#### Warehouses List (`/warehouses`)
-- Table: Name, Address, Zone, Max Capacity (kg), Current Weight (kg), Usage % (progress bar), Status, Actions
-- Filters: Zone, Status (active/inactive)
-- "Add Warehouse" button
-- **API**: `GET /warehouses`
+#### Lista bodegas (`/warehouses`)
+- Tabla: Nombre, Dirección, Zona, Capacidad, Peso actual, % uso.
+- **Alerta visible al 85% de capacidad** (HU-11 CA3).
+- **Bloqueo de ingreso si excede 100%** (HU-11 CA4).
 
-#### Warehouse Form (modal)
-- Fields: Name, Address, Zone (select), Max Capacity kg, Status (active/inactive), Latitude, Longitude, embedded map
-- **API**: `POST /warehouses` or `PUT /warehouses/:id`
+#### Form bodega (modal)
+- Campos + **mapa obligatorio** (HU-11 CA2).
 
-#### Warehouse Detail (`/warehouses/:id`)
-- Header card: name, address, zone, capacity bar (current/max kg), status badge
-- Inventory table: Resource Type, Category, Unit, Available Quantity, Total Weight (kg), Batch, Expiration Date, Actions
-  - Rows with expiration within 7 days: yellow highlight
-  - Rows with expired items: red highlight
-  - Action: "Adjust" → opens adjustment modal
-- **API**: `GET /warehouses/:id/inventory`
+#### Detalle bodega (`/warehouses/:id`)
+- Tabla inventario con expiraciones resaltadas.
+- Acción "Ajustar" → modal con combo motivo (merma/daño/devolución/corrección) + textarea obligatoria (HU-17 CA1-2). Bloquea ajustes que dejen stock negativo (HU-17 CA3).
 
-#### Inventory Adjustment Modal
-- Fields: Resource Type (read-only), Adjustment Type (add/subtract), Quantity, Reason (textarea)
-- **API**: `PUT /inventory/:id/adjustment`
+#### Catálogo recursos (`/inventory/resource-types`)
+- CRUD con filtro por categoría. Campo `is_active` en vez de delete (HU-14 CA4).
 
-#### Resource Types Catalog (`/inventory/resource-types`)
-- Table: Name, Category, Unit of Measure, Unit Weight (kg), Actions
-- Filter: Category dropdown (food/shelter/hygiene/health)
-- "Add Resource Type" button → modal: Name, Category (select), Unit of Measure, Unit Weight kg
-- **API**: CRUD `/resource-types`
+#### Resumen (`/inventory/summary`)
+- Cards por categoría + bar chart stock por recurso.
 
-#### Inventory Summary (`/inventory/summary`)
-- Cards grouped by category (food, shelter, hygiene, health): total quantity, total weight, resource type count
-- Bar chart: stock level per resource type
-- **API**: `GET /inventory/summary`
-
-#### Inventory Alerts (`/inventory/alerts`)
-- Alert cards with severity icons:
-  - Low stock warnings (amber)
-  - Expiring items (amber)
-  - Expired items (red)
-  - Over-capacity warehouses (red)
-- Each card: warehouse name, resource type, current quantity, action button → warehouse detail
+#### Alertas (`/inventory/alerts`)
+- Cards de alertas con severidad.
 - **API**: `GET /inventory/alerts`
 
+#### Umbrales (`/settings/alerts`) — ADMIN / COORDINADOR_LOGISTICA
+- Tabla configurable: recurso + umbral mínimo (HU-16 CA2).
+- **API**: `GET/PUT /alert-thresholds`
+
 ---
 
-### 3.6 Donors & Donations
+### 3.6 Donantes y Donaciones
 
-#### Donors List (`/donors`)
-- Table: Name, Type (badge: city_hall=blue, state_government=purple, private_company=green, citizen=gray, ngo=teal), Tax ID, Total Donations, Actions
-- "Register Donor" button
-- **API**: `GET /donors`
+#### Donantes (`/donors`)
+- Tabla: Nombre, Tipo (badge por color), Contact, Total donaciones, Acciones.
+- Form modal: Nombre, Tipo (5 opciones), Contact (requerido), Tax ID.
+- Validación unique (nombre, tipo) — HU-18 CA3.
 
-#### Donor Form (modal)
-- Fields: Name, Type (select), Tax ID (optional for citizens)
-- **API**: `POST /donors` or `PUT /donors/:id`
-
-#### Donations List (`/donations`)
-- Table: Donation Code, Donor Name, Type (in_kind/monetary/mixed), Monetary Amount, Destination Warehouse, Date, Actions
-- Filters: Donor, Type, Date range
-- "Record Donation" button
-- **API**: `GET /donations`
-
-#### Donation Form (`/donations/new`)
-- **Section 1 — General**: Donor (searchable select), Donation Type (select), Date (date picker, default today), Destination Warehouse (select, for in_kind/mixed), Monetary Amount (for monetary/mixed)
-- **Section 2 — In-kind Items** (if in_kind/mixed): dynamic rows (add/remove):
-  - Resource Type (select), Quantity, auto-calculated weight
-  - Running total weight at bottom
-  - Warning if total would exceed warehouse capacity
+#### Donaciones (`/donations`)
+- Tabla con filtros.
+- Form multi-sección con cálculo de peso automático y alerta si excede capacidad de bodega destino.
 - **API**: `POST /donations`
 
 ---
 
-### 3.7 Deliveries
+### 3.7 Entregas
 
-#### Deliveries List (`/deliveries`)
-- Table: Delivery Code, Family Code, Zone, Source Warehouse, Date, Coverage Days, Status (badge: pending=gray, in_transit=blue, delivered=green, cancelled=red), Delivered By, Actions
-- Filters: Zone, Status, Date range, Warehouse
-- "Create Delivery" and "Batch Delivery" buttons
-- **API**: `GET /deliveries`
+#### Lista (`/deliveries`)
+- Tabla con estados: **PROGRAMADA** (gris), **EN_CURSO** (azul), **ENTREGADA** (verde) — RF-29.
+- Filtros: zona, estado, rango fechas, bodega.
+- Botones "Crear Entrega", "Entrega por Lote".
 
-#### Delivery Form (`/deliveries/new`) — multi-step
-- **Step 1 — Select Family**: search by code/document, show family info + eligibility check result (API: `GET /families/:id/eligibility`)
-- **Step 2 — Select Warehouse**: select or "nearest" auto-select, show current inventory (APIs: `GET /warehouses/:id/inventory`, `GET /warehouses/nearest`)
-- **Step 3 — Select Items**: dynamic rows (resource type, quantity, weight), auto-calculated coverage days (0.6 kg/person/day), warning if <3 days, "Received By" document input
-- **Step 4 — Confirm**: summary card (family, warehouse, items, weight, coverage days), delivery coordinates
-- **API**: `POST /deliveries`
+#### Form entrega (`/deliveries/new`) — multi-step, offline-capable
+- **Paso 1 — Familia**: búsqueda, muestra elegibilidad. Si cobertura vigente: bloqueo con mensaje "Faltan X días". Acción "Autorizar excepción" solo para COORDINADOR_LOGISTICA con modal de justificación obligatoria (HU-23 CA5).
+- **Paso 2 — Bodega**: select o "más cercana", muestra inventario.
+- **Paso 3 — Ítems**: filas dinámicas, cálculo de cobertura automático (0,6 kg/persona/día), alerta si <3 días, input "Recibido por".
+- **Paso 4 — Confirmar**: resumen + coordenadas de entrega.
+- **Offline**: genera `client_op_id`, guarda en IndexedDB, toast "Guardado, se sincronizará". Axios envía `Idempotency-Key` al sincronizar.
+- **API**: `POST /deliveries` (con `Idempotency-Key`)
 
-#### Batch Delivery (`/deliveries/batch`)
-- Input: number of families (N)
-- "Preview Batch" → table of N highest-priority families (API: `GET /prioritization/next-batch?count=N`)
-- Source warehouse selection, standard item configuration
-- "Execute Batch" button
-- **API**: `POST /deliveries/batch`
+#### Entrega por lote (`/deliveries/batch`)
+- Input: N familias.
+- Preview top N priorizadas.
+- Selección bodega + paquete estándar.
+- **APIs**: `GET /prioritization/next-batch`, `POST /deliveries/batch`
 
-#### Delivery Detail (`/deliveries/:id`)
-- Header: code, status badge, date, coverage days
-- Cards: family info, warehouse info, delivered by
-- Items table: Resource Type, Quantity, Weight
-- Status update dropdown (coordinator/admin)
-- Mini-map with delivery location
-- **APIs**: `GET /deliveries/:id`, `PUT /deliveries/:id/status`
+#### Detalle entrega (`/deliveries/:id`)
+- Header, cards, tabla ítems, PUT /status, mini-mapa.
 
-#### Priority Ranking (`/deliveries/ranking`)
-- Table: Rank, Family Code, Priority Score, Members, Children <5, Elderly, Pregnant, Disabled, Zone Risk, Days Without Aid, Deliveries Received
-- "Recalculate All" button (admin/coordinator)
-- **APIs**: `GET /prioritization/ranking`, `POST /prioritization/recalculate`
+#### Ranking de priorización (`/deliveries/ranking`)
+- Tabla: Rank, Código, Puntaje (con botón "Ver desglose"), Miembros, Niños<5, Mayores, Gestantes, Discapacidad, Riesgo zona, Días sin ayuda, Entregas recibidas.
+- Botón "Recalcular todos" (ADMIN/COORDINADOR_LOGISTICA).
 
 ---
 
-### 3.8 Reports
+### 3.8 Planes de Distribución (`/distribution-plans`) — HU-21
 
-#### Reports Hub (`/reports`)
-- Grid of 5 report cards: title, description, icon, "Generate" button
+#### Lista
+- Tabla: Código PLN, Creado por, Fecha, Estado (PROGRAMADA/EN_EJECUCION/COMPLETADA/CANCELADA), Scope, # familias, Acciones.
 
-#### Coverage Report (`/reports/coverage`)
-- KPIs: total families, attended, unattended, coverage %
-- Bar chart: coverage by zone
-- Table: Zone, Total Families, Attended, Unattended, Coverage %
-- **API**: `GET /reports/coverage`
+#### Nuevo plan (`/distribution-plans/new`) — wizard
+- **Paso 1 — Scope**: radio GLOBAL / ZONA / REFUGIO / LOTE (+ selector de entidad si no es GLOBAL).
+- **Paso 2 — Preview**: tabla de familias elegibles ordenadas por puntaje, asignación por bodega, peso total, alerta "N familias sin atender por falta de stock" (HU-21 CA4).
+- **Paso 3 — Confirmar**: guarda como PROGRAMADA.
+- **APIs**: `POST /distribution-plans`
 
-#### Inventory Report (`/reports/inventory`)
-- Summary cards by category
-- Table: Warehouse, Resource Type, Available, Weight, Status
-- Stacked bar chart: inventory per warehouse
-- **API**: `GET /reports/inventory`
-
-#### Donations Report (`/reports/donations`)
-- Pie chart: by donation type
-- Bar chart: by donor type
-- Table: Donor, Type, Total Amount, Donations Count
-- **API**: `GET /reports/donations-by-type`
-
-#### Deliveries by Zone (`/reports/deliveries-zone`)
-- Horizontal bar chart: deliveries per zone
-- Table: Zone, Deliveries Count, Families Covered, Avg Coverage Days
-- **API**: `GET /reports/deliveries-by-zone`
-
-#### Unattended Families (`/reports/unattended`)
-- Alert banner with total count
-- Table: Family Code, Head Document, Zone, Members, Priority Score, Days Since Registration
-- Action: "Create Delivery" link per row
-- **API**: `GET /reports/unattended-families`
+#### Detalle (`/distribution-plans/:id`)
+- Header con estado + botones "Ejecutar" (genera entregas), "Cancelar".
+- Tabla de items con familia, bodega, recursos, estado item (PENDIENTE/ENTREGADO/SIN_ATENDER).
 
 ---
 
-### 3.9 Health Vectors (`/health/vectors`)
-- Table: Vector Type, Risk Level (badge), Zone/Shelter, Lat, Lng, Actions Taken, Date, Actions
-- "Register Vector" button → modal: Vector Type (mosquito/rodent/contaminated_water/waste/other), Risk Level, Zone/Shelter (optional), Lat, Lng, map with draggable marker, Actions Taken (textarea)
-- **API**: CRUD `/health/vectors`
+### 3.9 Reportes (`/reports`)
+
+#### Hub
+- Grid de cards para cada reporte.
+
+#### Reportes individuales
+Cada uno con **botones "Exportar PDF" y "Exportar Excel"** (HU-28 CA4, HU-29 CA5):
+
+- **Cobertura** (`/reports/coverage`): KPIs + bar chart por zona + tabla.
+- **Inventario** (`/reports/inventory`): cards + tabla + stacked bar.
+- **Donaciones por tipo** (`/reports/donations`): pie + bar + tabla.
+- **Entregas por zona** (`/reports/deliveries-zone`): bar horizontal + tabla.
+- **Familias no atendidas** (`/reports/unattended`): alert banner + tabla con enlace "Crear Entrega".
+- **Zonas sin entregas** (`/reports/zones-without-deliveries`) — HU-30: tabla + mapa con resaltado visual.
+- **Trazabilidad** (`/reports/traceability`) — HU-29: filtros (donante, rango, zona); cadena donante → bodega → entrega → familia.
 
 ---
 
-### 3.10 Relocations (`/relocations`)
-- Table: Family Code, Origin Shelter, Destination Shelter, Type (temporary/permanent), Date, Created By
-- "Register Relocation" button → modal: Family (searchable select), Origin Shelter (auto from family, read-only), Destination Shelter (select, excluding origin), Type, Reason
+### 3.10 Vectores Sanitarios (`/health/vectors`)
+- Tabla: Tipo (literal PDF), Riesgo (badge), Zona/Refugio, Estado (**ACTIVO/EN_ATENCION/RESUELTO** — HU-25 CA2), Acciones tomadas, Fecha, Acciones.
+- Filtros por estado, vector_type, zona.
+- Acción inline "Cambiar estado" → modal con nueva acción tomada.
+- Form modal para alta con mapa con marker arrastrable.
+- **APIs**: CRUD `/health/vectors`, `PUT /health/vectors/:id/status`
+
+---
+
+### 3.11 Traslados (`/relocations`)
+- Tabla: Familia, Refugio origen, Refugio destino, Tipo, Fecha, Autorizado por.
+- Form modal: familia (searchable), origen (auto), destino (select excluyendo origen, valida capacidad), tipo, motivo.
 - **API**: `POST /relocations`, `GET /relocations`
 
 ---
 
-### 3.11 Map (`/map`)
-- Full-width Leaflet map centered on Monteria (8.7479, -75.8814), zoom 13
-- **Layer toggles** (floating checkbox panel):
-  - Shelters (blue markers, popup: name, occupancy/capacity, "View Detail" link)
-  - Warehouses (green markers, popup: name, weight/capacity, "View Inventory" link)
-  - Families (orange dots, clustered with react-leaflet-cluster, popup: code, priority, status)
-  - Health Vectors (red triangle markers, popup: type, risk, actions)
-  - Recent Deliveries (purple markers, popup: family code, date, items)
-- Zone filter dropdown
-- Color-coded legend
-- **APIs**: `GET /map/shelters`, `/map/warehouses`, `/map/families`, `/map/vectors`, `/map/zone/:id`, `/map/recent-deliveries`
+### 3.12 Mapa (`/map`)
+
+Leaflet full-width centrado en Montería (8.7479, -75.8814), zoom 13.
+
+**Capas (toggle independientes — HU-13 CA2)**:
+- Refugios (azul) — popup con ocupación
+- Bodegas (verde) — popup con stock
+- Familias (naranja, clustered) — popup minimal (sin datos sensibles)
+- Vectores (rojo triángulo) — filtra por defecto ACTIVO + EN_ATENCION (HU-26 CA3); iconos por nivel de riesgo
+- Entregas recientes (morado, últimos 7 días)
+- **Zonas sin entregas** (resaltado visual amarillo — HU-30 CA4)
+
+Filtro de zona y leyenda.
+
+Si una familia no tiene coordenadas, aparece agrupada por zona (HU-13 CA5).
+
+**APIs**: `GET /map/shelters`, `/warehouses`, `/families`, `/vectors`, `/zone/:id`, `/recent-deliveries`, `/zones-without-deliveries`
+
+---
+
+### 3.13 Auditoría (`/audit`) — FUNCIONARIO_CONTROL / ADMIN
+
+- Tabla: Fecha, Usuario, Acción, Módulo, Entidad, ID, IP.
+- Columna expandible que muestra `before` / `after` JSON diff.
+- Filtros: usuario, módulo, tipo de acción, rango de fechas (HU-31 CA3).
+- Export PDF/Excel.
+- **Sin mutaciones** (RNF-09).
+- **API**: `GET /audit`
+
+---
+
+### 3.14 Configuración
+
+#### Puntaje (`/settings/scoring`) — ADMIN / COORDINADOR_LOGISTICA
+- Formulario con campo por peso: W_MEMBERS, W_CHILDREN_5, W_ADULTS_65, W_PREGNANT, W_DISABLED, W_ZONE_RISK, W_DAYS_NO_AID, W_DELIVERIES, MAX_DAYS (HU-08 CA5).
+- Al guardar, invalida caché en backend.
+- **API**: `GET/PUT /scoring-config`
+
+#### Alertas (`/settings/alerts`) — ADMIN / COORDINADOR_LOGISTICA
+- Tabla: recurso + umbral mínimo.
+- **API**: `GET/PUT /alert-thresholds`
 
 ---
 
@@ -346,152 +337,181 @@ The SIGAH system is a monolith — both backend (Express API) and frontend (Reac
 ```
 +--------------------------------------------------+
 | NAVBAR (fixed top)                               |
-| [Hamburger] [SIGAH Logo]          [Alerts] [User]|
+| [Hamburger] [Logo SIGAH] [ConnectionBadge] [User]|
 +----------+---------------------------------------+
 | SIDEBAR  |  MAIN CONTENT                         |
-| (w-64,   |  (scrollable, padded)                 |
-| collaps- |                                        |
-| ible)    |  <Outlet /> (React Router)             |
-|          |                                        |
-| Nav      |                                        |
-| groups:  |                                        |
-| GENERAL  |                                        |
-| CENSUS   |                                        |
-| LOGISTICS|                                        |
-| AID      |                                        |
-| OPERATIONS                                        |
-| ANALYSIS |                                        |
-| ADMIN    |                                        |
+| (w-64,   |  <Outlet /> con toasts Sonner          |
+| collap.) |                                        |
 +----------+---------------------------------------+
 ```
 
-**Sidebar nav groups:**
-- GENERAL: Dashboard, Map
-- CENSUS: Families, Person Search, Zones, Shelters
-- LOGISTICS: Warehouses, Inventory, Resource Types, Alerts
-- AID: Deliveries, Batch Delivery, Priority Ranking, Donors, Donations
-- OPERATIONS: Health Vectors, Relocations
-- ANALYSIS: Reports
-- ADMIN (admin only): Users
+**Sidebar por grupos**:
+- GENERAL: Dashboard, Mapa
+- CENSO: Familias, Búsqueda Personas, Zonas, Refugios
+- LOGÍSTICA: Bodegas, Inventario, Tipos Recurso, Alertas
+- AYUDAS: Entregas, Entrega por Lote, Planes de Distribución, Ranking, Donantes, Donaciones
+- OPERACIONES: Vectores, Traslados
+- ANÁLISIS: Reportes
+- CONFIGURACIÓN (admin/coord): Puntaje, Umbrales
+- CONTROL (funcionario/admin): Auditoría
+- ADMIN (admin only): Usuarios
 
-**Responsive:** Desktop (>=1024px) sidebar visible, collapsible to icons. Tablet (768-1023px) sidebar hidden, slides over. Mobile (<768px) full overlay, tables scroll horizontally.
+**ConnectionBadge** (siempre visible en navbar): pill con estado `online` / `offline` / `syncing` + contador de operaciones pendientes.
+
+**Responsive**:
+- Desktop (≥1024px): sidebar visible, collapsible a íconos.
+- Tablet (768-1023px): sidebar oculto, slide over.
+- Mobile (<768px): overlay full, bottom-nav opcional en flujos de censo/entrega, tables scroll horizontal.
+
+Mobile-first: un voluntario debe aprender a usarlo en <1 hora (RNF-01).
 
 ---
 
 ## 5. Routing
 
 ```
-/login                          LoginPage (no layout)
-/dashboard                      DashboardPage
-/map                            MapPage
-/families                       FamiliesListPage
-/families/new                   FamilyFormPage
-/families/:id                   FamilyDetailPage
-/families/:id/edit              FamilyFormPage (edit)
-/persons/search                 PersonSearchPage
-/zones                          ZonesListPage
-/zones/:id                      ZoneDetailPage
-/shelters                       SheltersListPage
-/warehouses                     WarehousesListPage
-/warehouses/:id                 WarehouseDetailPage
-/inventory/summary              InventorySummaryPage
-/inventory/resource-types       ResourceTypesPage
-/inventory/alerts               InventoryAlertsPage
-/donors                         DonorsListPage
-/donations                      DonationsListPage
-/donations/new                  DonationFormPage
-/deliveries                     DeliveriesListPage
-/deliveries/new                 DeliveryFormPage
-/deliveries/batch               BatchDeliveryPage
-/deliveries/ranking             PriorityRankingPage
-/deliveries/:id                 DeliveryDetailPage
-/reports                        ReportsHubPage
-/reports/coverage               CoverageReportPage
-/reports/inventory              InventoryReportPage
-/reports/donations              DonationsReportPage
-/reports/deliveries-zone        DeliveriesByZoneReportPage
-/reports/unattended             UnattendedFamiliesPage
-/health/vectors                 HealthVectorsPage
-/relocations                    RelocationsPage
-/users                          UsersPage (admin only)
-*                               NotFoundPage
+/login                                 LoginPage (sin layout)
+/change-password                       ChangePasswordPage (si password_must_change)
+/dashboard                             DashboardPage
+/map                                   MapPage
+
+/families                              FamiliesListPage
+/families/new                          FamilyFormPage (offline-capable)
+/families/:id                          FamilyDetailPage
+/families/:id/edit                     FamilyFormPage (edit)
+/persons/search                        PersonSearchPage
+
+/zones                                 ZonesListPage
+/zones/:id                             ZoneDetailPage
+
+/shelters                              SheltersListPage
+
+/warehouses                            WarehousesListPage
+/warehouses/:id                        WarehouseDetailPage
+/inventory/summary                     InventorySummaryPage
+/inventory/resource-types              ResourceTypesPage
+/inventory/alerts                      InventoryAlertsPage
+
+/donors                                DonorsListPage
+/donations                             DonationsListPage
+/donations/new                         DonationFormPage
+
+/deliveries                            DeliveriesListPage
+/deliveries/new                        DeliveryFormPage (offline-capable)
+/deliveries/batch                      BatchDeliveryPage
+/deliveries/ranking                    PriorityRankingPage
+/deliveries/:id                        DeliveryDetailPage
+
+/distribution-plans                    DistributionPlansListPage
+/distribution-plans/new                DistributionPlanFormPage
+/distribution-plans/:id                DistributionPlanDetailPage
+
+/reports                               ReportsHubPage
+/reports/coverage                      CoverageReportPage
+/reports/inventory                     InventoryReportPage
+/reports/donations                     DonationsReportPage
+/reports/deliveries-zone               DeliveriesByZoneReportPage
+/reports/unattended                    UnattendedFamiliesPage
+/reports/zones-without-deliveries      ZonesWithoutDeliveriesPage
+/reports/traceability                  TraceabilityReportPage
+
+/health/vectors                        HealthVectorsPage
+/relocations                           RelocationsPage
+
+/audit                                 AuditLogPage
+/settings/scoring                      ScoringConfigPage
+/settings/alerts                       AlertThresholdsPage
+
+/users                                 UsersPage (ADMIN only)
+*                                      NotFoundPage
 ```
 
-Total: **32 routes**, **30 page components**
+Total: **40 rutas**, **38 componentes de página**.
 
 ---
 
-## 6. Shared Components
+## 6. Componentes compartidos
 
-**Layout**: AppLayout, Sidebar, Navbar, PageHeader (title + breadcrumbs + action buttons)
+**Layout**: AppLayout, Sidebar, Navbar, ConnectionBadge, PageHeader
 
-**Data display**: DataTable (TanStack Table wrapper with sorting/pagination/skeleton), KpiCard, StatusBadge, ProgressBar, EmptyState, LoadingSpinner, Skeleton
+**Data display**: DataTable (TanStack), KpiCard, StatusBadge, ProgressBar, ScoreBreakdown, EmptyState, LoadingSpinner, Skeleton
 
-**Forms** (TanStack Form + Zod): FormField (wraps `form.Field` with label+input+error), SelectField (searchable), DatePickerField, DynamicFieldArray (wraps `form.Field` with `mode: 'array'` for add/remove rows), MapPicker (embedded Leaflet with draggable marker), ConfirmDialog
+**Forms**: FormField, SelectField, DatePickerField, DynamicFieldArray, MapPicker, PrivacyConsentCheckbox, ConfirmDialog, ExceptionAuthorizationDialog
 
-**Map**: MapContainer (preconfigured Leaflet), MarkerCluster, LayerToggle, MarkerPopup
+**Map**: MapContainer, MarkerCluster, LayerToggle, MarkerPopup, ZonesHighlight
 
-**Auth**: ProtectedRoute (JWT + role check), RoleBoundary (conditional render by role)
+**Auth**: ProtectedRoute (JWT + role + password_must_change), RoleBoundary, PasswordChangeGuard
 
----
+**Reportes**: ExportButtons (PDF/Excel), ReportHeader, ChartContainer
 
-## 7. Role-Based UI
-
-| Feature | Admin | Coordinator | Operator | Viewer |
-|---------|-------|-------------|----------|--------|
-| View all data | Yes | Yes | Yes | Yes |
-| Create/edit families, persons | Yes | Yes | Yes | No |
-| Delete families, persons | Yes | Yes | No | No |
-| Create/edit zones, shelters, warehouses | Yes | Yes | No | No |
-| Delete zones, shelters, warehouses | Yes | No | No | No |
-| Record donations | Yes | Yes | Yes | No |
-| Create deliveries | Yes | Yes | Yes | No |
-| Batch delivery | Yes | Yes | No | No |
-| Recalculate priorities | Yes | Yes | No | No |
-| Register users | Yes | No | No | No |
-| Inventory adjustments | Yes | Yes | No | No |
-| View reports & map | Yes | Yes | Yes | Yes |
+**Offline**: OfflineIndicator, PendingOpsBadge, SyncErrorList
 
 ---
 
-## 8. Project Structure (inside `SIGAH/client/`)
+## 7. Role-Based UI (6 roles)
 
-> This frontend lives at `SIGAH/client/` within the monolith. See PLAN.md for the full project structure. In development, Vite proxies `/api` requests to the Express backend at `localhost:3000`. In production, Express serves the compiled `client/dist/` as static files.
+| Capacidad | Admin | Censador | Op.Entregas | Coord.Log | Func.Control | Reg.Donaciones |
+|---|---|---|---|---|---|---|
+| Registrar familias/personas | ✓ | ✓ | – | ✓ | – | – |
+| Editar/desactivar familia | ✓ | ✓ | – | ✓ | – | – |
+| Registrar traslado | ✓ | ✓ | – | ✓ | – | – |
+| Zonas/refugios/bodegas CRUD | ✓ | – | – | ✓ | – | – |
+| Tipos de recurso CRUD | ✓ | – | – | ✓ | – | ✓ |
+| Donantes y donaciones | ✓ | – | – | – | consulta | ✓ |
+| Plan de distribución | ✓ | – | – | ✓ | – | – |
+| Registrar entrega individual | ✓ | – | ✓ | ✓ | – | – |
+| Ajuste de inventario | ✓ | – | – | ✓ | – | – |
+| Excepción entrega anticipada | ✓ | – | – | ✓ | – | – |
+| Vectores CRUD | ✓ | – | – | ✓ | – | – |
+| Config puntaje/alertas | ✓ | – | – | ✓ | – | – |
+| Auditoría | ✓ | – | – | – | ✓ | – |
+| Reportes | ✓ | – | ✓ | ✓ | ✓ | ✓ |
+| Usuarios CRUD | ✓ | – | – | – | – | – |
+
+Los botones y menú items se ocultan según el rol (no se deshabilitan). Dashboard como pantalla de inicio varía por rol.
+
+---
+
+## 8. Estructura de proyecto (dentro de `SIGAH/client/`)
 
 ```
 client/
-├── index.html
+├── index.html                        # Con <link rel="manifest">
 ├── package.json
-├── tsconfig.json                     # TypeScript config (strict mode)
-├── tsconfig.app.json                 # TS config for app source
-├── tsconfig.node.json                # TS config for Vite/Node files
-├── vite.config.ts                    # Vite + Tailwind plugin + /api proxy to server
+├── tsconfig.json                     # strict
+├── vite.config.ts                    # Vite + tailwind + vite-plugin-pwa + proxy /api
 ├── public/
 │   ├── favicon.ico
 │   ├── logo.svg
-│   └── marker-icons/                 # Custom Leaflet marker PNGs
+│   ├── manifest.webmanifest          # PWA manifest
+│   ├── icons/                        # PWA icons (192, 512, maskable)
+│   └── marker-icons/                 # Leaflet PNGs
 ├── src/
-│   ├── main.tsx                      # ReactDOM.createRoot, providers
-│   ├── App.tsx                       # Route definitions
+│   ├── main.tsx                      # Providers: Query, Router, Auth, Sync
+│   ├── App.tsx                       # Routes
 │   ├── index.css                     # Tailwind directives
-│   ├── vite-env.d.ts                 # Vite client types
+│   ├── vite-env.d.ts
 │   │
-│   ├── types/                        # Shared TypeScript types
-│   │   ├── auth.types.ts             # User, LoginRequest, LoginResponse, Role
-│   │   ├── family.types.ts           # Family, Person, FamilyStatus
-│   │   ├── zone.types.ts             # Zone, RiskLevel
-│   │   ├── shelter.types.ts          # Shelter, ShelterType
-│   │   ├── warehouse.types.ts        # Warehouse, ResourceType, InventoryItem
-│   │   ├── donation.types.ts         # Donor, Donation, DonationDetail, DonorType
-│   │   ├── delivery.types.ts         # Delivery, DeliveryDetail, DeliveryStatus
-│   │   ├── health.types.ts           # HealthVector, VectorType
-│   │   ├── relocation.types.ts       # Relocation, RelocationType
-│   │   ├── report.types.ts           # Dashboard, CoverageReport, etc.
-│   │   ├── map.types.ts              # MapMarker, MapLayer
-│   │   └── api.types.ts              # PaginatedResponse<T>, ApiError
+│   ├── types/                        # Tipos compartidos
+│   │   ├── auth.types.ts             # User, Role (6 valores), tokens
+│   │   ├── family.types.ts           # Status: ACTIVO/EN_REFUGIO/EVACUADO
+│   │   ├── zone.types.ts
+│   │   ├── shelter.types.ts
+│   │   ├── warehouse.types.ts
+│   │   ├── donation.types.ts         # DonorType (5 valores nuevos)
+│   │   ├── delivery.types.ts         # Status: PROGRAMADA/EN_CURSO/ENTREGADA
+│   │   ├── distributionPlan.types.ts
+│   │   ├── health.types.ts           # VectorStatus
+│   │   ├── relocation.types.ts
+│   │   ├── report.types.ts
+│   │   ├── audit.types.ts
+│   │   ├── scoring.types.ts
+│   │   ├── offline.types.ts          # PendingOp, SyncStatus
+│   │   ├── map.types.ts
+│   │   └── api.types.ts
 │   │
-│   ├── api/                          # Axios setup + per-module API functions
-│   │   ├── axios.ts                  # Instance with JWT interceptor + 401 handler (baseURL: /api/v1)
+│   ├── api/                          # Axios + funciones por módulo (18)
+│   │   ├── axios.ts                  # baseURL: /api/v1, interceptor JWT, 401 handler, Idempotency-Key
 │   │   ├── auth.api.ts
 │   │   ├── families.api.ts
 │   │   ├── persons.api.ts
@@ -502,13 +522,17 @@ client/
 │   │   ├── donors.api.ts
 │   │   ├── donations.api.ts
 │   │   ├── deliveries.api.ts
+│   │   ├── distributionPlans.api.ts
 │   │   ├── prioritization.api.ts
+│   │   ├── scoringConfig.api.ts
 │   │   ├── reports.api.ts
 │   │   ├── healthVectors.api.ts
 │   │   ├── relocations.api.ts
-│   │   └── map.api.ts
+│   │   ├── map.api.ts
+│   │   ├── audit.api.ts
+│   │   └── sync.api.ts
 │   │
-│   ├── hooks/                        # TanStack Query wrappers per module
+│   ├── hooks/                        # TanStack Query wrappers
 │   │   ├── useAuth.ts
 │   │   ├── useFamilies.ts
 │   │   ├── usePersons.ts
@@ -519,37 +543,36 @@ client/
 │   │   ├── useDonors.ts
 │   │   ├── useDonations.ts
 │   │   ├── useDeliveries.ts
+│   │   ├── useDistributionPlans.ts
 │   │   ├── usePrioritization.ts
+│   │   ├── useScoringConfig.ts
 │   │   ├── useReports.ts
 │   │   ├── useHealthVectors.ts
 │   │   ├── useRelocations.ts
-│   │   └── useMap.ts
+│   │   ├── useMap.ts
+│   │   ├── useAudit.ts
+│   │   ├── useOfflineSync.ts         # Hook que consume offlineQueue
+│   │   └── useConnection.ts          # Online/offline
 │   │
 │   ├── context/
-│   │   └── AuthContext.tsx           # JWT + user state + login/logout
+│   │   ├── AuthContext.tsx           # JWT + user (incl. password_must_change) + login/logout
+│   │   └── SyncContext.tsx           # { status, pendingCount, lastSyncAt }
 │   │
-│   ├── schemas/                      # Zod validation schemas (used by TanStack Form)
-│   │   ├── auth.schema.ts
-│   │   ├── family.schema.ts
+│   ├── schemas/                      # Zod schemas
+│   │   ├── auth.schema.ts            # password min 8
+│   │   ├── family.schema.ts          # requiere privacy_consent_accepted
 │   │   ├── person.schema.ts
-│   │   ├── zone.schema.ts
-│   │   ├── shelter.schema.ts
-│   │   ├── warehouse.schema.ts
-│   │   ├── resourceType.schema.ts
-│   │   ├── donor.schema.ts
-│   │   ├── donation.schema.ts
-│   │   ├── delivery.schema.ts
-│   │   ├── healthVector.schema.ts
-│   │   └── relocation.schema.ts
+│   │   ├── ...                       # Uno por módulo
 │   │
 │   ├── components/
-│   │   ├── layout/                   # AppLayout, Sidebar, Navbar, PageHeader
-│   │   ├── ui/                       # DataTable, KpiCard, StatusBadge, etc.
-│   │   ├── form/                     # FormField, SelectField, MapPicker, etc.
-│   │   ├── map/                      # MapContainer, MarkerCluster, LayerToggle
-│   │   └── auth/                     # ProtectedRoute, RoleBoundary
+│   │   ├── layout/                   # AppLayout, Sidebar, Navbar, ConnectionBadge, PageHeader
+│   │   ├── ui/                       # DataTable, KpiCard, StatusBadge, ScoreBreakdown
+│   │   ├── form/                     # FormField, MapPicker, PrivacyConsentCheckbox, etc.
+│   │   ├── map/                      # MapContainer, MarkerCluster, LayerToggle, ZonesHighlight
+│   │   ├── reports/                  # ExportButtons, ChartContainer
+│   │   └── auth/                     # ProtectedRoute, RoleBoundary, PasswordChangeGuard
 │   │
-│   ├── pages/                        # One folder per module, one .tsx per page
+│   ├── pages/                        # Una carpeta por módulo
 │   │   ├── auth/
 │   │   ├── dashboard/
 │   │   ├── families/
@@ -561,60 +584,131 @@ client/
 │   │   ├── donors/
 │   │   ├── donations/
 │   │   ├── deliveries/
+│   │   ├── distributionPlans/
 │   │   ├── reports/
 │   │   ├── health/
 │   │   ├── relocations/
+│   │   ├── audit/
+│   │   ├── settings/
 │   │   ├── users/
 │   │   └── map/
 │   │
 │   ├── utils/
-│   │   ├── constants.ts              # Roles, statuses, categories, colors
-│   │   ├── formatters.ts             # formatDate, formatWeight, formatPercentage
-│   │   ├── rolePermissions.ts        # canCreate/canEdit/canDelete per module
-│   │   └── mapConfig.ts              # Monteria coords, zoom, tile URL, marker icons
+│   │   ├── constants.ts              # 6 roles, estados, categorías, colores
+│   │   ├── formatters.ts
+│   │   ├── rolePermissions.ts        # Matriz RBAC
+│   │   ├── mapConfig.ts              # Coords Montería, tile URL, marker icons
+│   │   └── exporters.ts              # generatePDF, generateXLSX con jspdf/xlsx
 │   │
 │   └── lib/
-│       ├── queryClient.ts            # TanStack Query client defaults
-│       └── leafletSetup.ts           # Fix Leaflet icon issue with Vite
+│       ├── queryClient.ts            # TanStack Query con persist
+│       ├── leafletSetup.ts
+│       ├── offlineQueue.ts           # Dexie + cola de mutaciones con client_op_id
+│       ├── sw.ts                     # Service Worker config (workbox)
+│       └── syncManager.ts            # Flush queue cuando vuelve conexión
 ```
 
 ### API Base URL
-
-Since the frontend is part of the monolith, Axios uses a relative `baseURL: '/api/v1'` — no `VITE_API_URL` environment variable needed. In development, Vite proxies `/api` to Express. In production, both are served from the same origin.
-
----
-
-## 9. Implementation Order
-
-> The frontend scaffolding (Step 1) is done as part of the monolith initialization (backend PLAN.md Step 1). The backend API for each module must exist before implementing its frontend views.
-
-| Step | What | Depends on (backend) | Depends on (frontend) |
-|------|------|---------------------|----------------------|
-| 1 | Scaffolding already done (Vite + React + Tailwind + folder structure + proxy) | Backend Step 1 | — |
-| 2 | Shared UI components: DataTable, KpiCard, StatusBadge, ProgressBar, FormField, SelectField, ConfirmDialog | — | Step 1 |
-| 3 | Layout: AppLayout, Sidebar, Navbar, routing with ProtectedRoute | — | Step 1 |
-| 4 | Auth: Axios setup (`baseURL: '/api/v1'`), AuthContext, LoginPage, RoleBoundary, UsersPage | Backend Step 3 | Steps 2-3 |
-| 5 | Zones + Shelters: list, CRUD forms, zone detail with tabs | Backend Step 4 | Step 4 |
-| 6 | Families + Persons: list, form with MapPicker, detail with tabs, person search | Backend Step 5 | Steps 4-5 |
-| 7 | Warehouses + Inventory: CRUD, warehouse detail, resource types, summary, alerts | Backend Step 6 | Step 4 |
-| 8 | Donors + Donations: donor CRUD, donation form with dynamic item rows | Backend Step 7 | Step 7 |
-| 9 | Deliveries: multi-step form, batch, list, detail, priority ranking | Backend Steps 8-9 | Steps 6-7 |
-| 10 | Map: Leaflet setup, layers, clustering, popups | Backend Step 11 | Steps 5-7 |
-| 11 | Dashboard: KPI cards, Recharts, recent deliveries table | Backend Step 11 | Steps 6-9 |
-| 12 | Reports: 5 report pages with charts and tables | Backend Step 11 | Step 11 |
-| 13 | Health Vectors + Relocations: CRUD pages | Backend Step 10 | Step 4 |
-| 14 | Polish: responsive testing, error boundaries, loading/empty states | All | All |
+Axios usa `baseURL: '/api/v1'`. Sin variables de entorno. En dev, Vite proxy-a. En prod, mismo origen.
 
 ---
 
-## 10. Verification
+## 9. Orden de implementación
 
-1. **Dev mode**: `npm run dev` from `SIGAH/` root — starts both Express (port 3000) and Vite (port 5173) concurrently. Frontend at `localhost:5173` proxies `/api` to Express.
-2. **Production build**: `npm run build` from root — compiles frontend to `client/dist/`. Then `npm start` — Express serves both API and frontend from port 3000.
-3. **Auth flow**: login with valid credentials → redirected to dashboard; invalid → error toast; expired token → redirected to login
-4. **CRUD smoke test**: for each module, create an entity, see it in the list, edit it, delete it
-5. **Delivery flow**: create family → check eligibility → select warehouse → add items → verify coverage >= 3 days → confirm → inventory decremented → priority recalculated
-6. **Map**: all layers toggle on/off, markers display with correct popups, family markers cluster at zoom out
-7. **Reports**: each report renders charts and tables with real data
-8. **Responsive**: test at 1440px, 768px, and 375px widths — sidebar collapses, tables scroll, cards stack
-9. **Role access**: login as viewer → action buttons hidden; login as admin → all actions visible
+> El scaffolding (Paso 1) ya está hecho como parte del monolito. El backend de cada módulo debe existir antes de su frontend.
+
+| Paso | Qué | Backend | Frontend deps |
+|------|-----|---------|----------------|
+| 1 | Scaffolding (Vite + React + Tailwind + folder + proxy) | #1 | — |
+| 2 | Adaptación Auth (roles nuevos, password_must_change, lockout) | #9.1 | — |
+| 3 | UI base: DataTable, KpiCard, StatusBadge, ProgressBar, FormField, SelectField, ConfirmDialog, ScoreBreakdown | — | #1 |
+| 4 | Layout + ProtectedRoute + PasswordChangeGuard | — | #3 |
+| 5 | Axios + AuthContext + LoginPage con lockout + ChangePasswordPage + UsersPage | #9.1 | #3-4 |
+| 6 | Zonas + Refugios: CRUD con mapa obligatorio | #10-#11 | #5 |
+| 7 | Familias + Personas: formulario con consentimiento privacidad + detalle con breakdown de puntaje + búsqueda unificada | #12-#14 | #5-6 |
+| 8 | Bodegas + Inventario: CRUD, ajustes con motivo, alertas configurables, nearest | #15-#17 | #5 |
+| 9 | Donantes + Donaciones: form con nuevo enum y contact, items dinámicos | #18-#19 | #8 |
+| 10 | Priorización + ScoringConfig: ranking con breakdown, editor de pesos | #20-#21 | #7 |
+| 11 | Entregas: multi-step, batch, excepciones (sin offline aún) | #22-#24 | #7-8-10 |
+| 12 | Planes de Distribución: wizard, listado, ejecución | #25 | #10-11 |
+| 13 | Salubridad + Traslados | #26-#27 | #5 |
+| 14 | Mapa con capas (incluye zonas sin entregas) | #29 | #6-8 |
+| 15 | Dashboard + Reportes con export PDF/Excel + Trazabilidad | #30-#31 | #11-14 |
+| 16 | Auditoría UI con filtros | #28 | #5 |
+| 17 | **PWA + Offline**: Service Worker, manifest, Dexie queue, ConnectionBadge, offline flow de censo y entregas | #32 | #7-11 |
+| 18 | Polish: responsive, error boundaries, loading/empty states, a11y | Todos | Todos |
+
+---
+
+## 10. PWA y Offline — detalle
+
+### Service Worker (vite-plugin-pwa + workbox)
+- Estrategia por tipo de recurso:
+  - HTML shell: NetworkFirst con fallback a cache.
+  - Assets (JS/CSS/IMG): StaleWhileRevalidate.
+  - API GET idempotentes (`/families`, `/inventory/summary`, `/reports/*`): NetworkFirst con cache fallback (TTL 5 min).
+  - API POST/PUT/DELETE: **no cachear**; si offline, el request va a la cola (Dexie).
+- Manifest: nombre "SIGAH", iconos 192/512/maskable, `start_url: '/'`, `display: 'standalone'`.
+
+### Cola offline (Dexie)
+```ts
+// lib/offlineQueue.ts
+interface PendingOp {
+  id?: number;
+  client_op_id: string;        // uuid
+  entity: 'family' | 'delivery' | 'person' | 'relocation';
+  method: 'POST' | 'PUT' | 'DELETE';
+  url: string;
+  payload: unknown;
+  created_at: Date;
+  attempts: number;
+  last_error?: string;
+}
+```
+
+Hook `useOfflineSync()`:
+- Al volver online (`window.addEventListener('online')`): hace flush en orden FIFO contra `/sync` batch o llamadas individuales con `Idempotency-Key: client_op_id`.
+- Retries con backoff exponencial (max 5 intentos).
+- En caso de conflicto (409), notifica al usuario para resolver.
+
+### ConnectionBadge (navbar)
+- **Online** (verde): sin pendientes.
+- **Offline** (amarillo): muestra "Sin conexión · N pendientes".
+- **Syncing** (azul con spinner): durante flush.
+- Click → modal con detalle de ops pendientes y errores.
+
+### Flujos offline soportados
+- **Censo** (HU-04 CA5): registrar familia completa con personas y consentimiento. Se guarda con `client_op_id`; sincroniza al reconectar.
+- **Entregas** (HU-22 CA6): registrar entrega individual con ítems y ubicación.
+- Lecturas (listas, detalles) disponibles desde cache con indicador "Datos locales, pueden estar desactualizados".
+
+### Consideraciones de capacidad
+- IndexedDB: sin límite práctico para el uso esperado.
+- El frontend rechaza guardar más de 200 ops pendientes por usuario (protección).
+
+---
+
+## 11. Verificación
+
+1. **Dev**: `npm run dev` desde la raíz — Express (3000) + Vite (5173) concurrentes. Proxy /api funciona.
+2. **Build**: `npm run build` — genera `client/dist/`.
+3. **Producción**: `npm start` — Express sirve API + frontend.
+4. **Auth**:
+   - Login inválido 5 veces bloquea la cuenta 15 minutos.
+   - Usuario desactivado no entra.
+   - `password_must_change=true` fuerza flujo de cambio antes del dashboard.
+5. **CRUD smoke test**: por cada módulo, crear → listar → editar → acción específica.
+6. **Consentimiento privacidad**: registro de familia sin checkbox debe bloquear el submit.
+7. **Flujo completo**: donación → inventario incrementado → plan de distribución priorizado → ejecución → entregas creadas → inventario decrementado → priority_score recalculado → intento duplicado bloqueado.
+8. **Excepción**: coordinador autoriza entrega anticipada con justificación obligatoria; otros roles no ven el botón.
+9. **Mapa**: todas las capas toggle on/off, markers con popups correctos, clustering de familias, zonas sin entregas resaltadas.
+10. **Reportes**: cada reporte descarga PDF y Excel correctos.
+11. **Auditoría**: acciones aparecen en `/audit` con before/after y IP; UPDATE/DELETE directos no están expuestos.
+12. **Offline**:
+    - Desconectar red. Registrar familia. ConnectionBadge muestra "1 pendiente". Reconectar. Se sincroniza y aparece en lista.
+    - Misma prueba con entrega.
+    - Intento de sincronizar la misma op dos veces (tras reinstalar app): no duplica por Idempotency-Key.
+13. **Responsive**: probar 1440px, 768px, 375px — sidebar colapsa, tablas scroll, formularios full-width en mobile.
+14. **Roles (6 matrices)**: login con cada rol → verificar que el menú y las acciones coinciden con la tabla §7.
+15. **Performance**: búsqueda de familias con 12.000 registros responde en <2s.
+16. **Dashboard por rol**: pantalla de inicio es `/dashboard` para COORDINADOR_LOGISTICA y FUNCIONARIO_CONTROL (HU-27 CA3).

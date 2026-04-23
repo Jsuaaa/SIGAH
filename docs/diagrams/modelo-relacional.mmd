@@ -1,0 +1,300 @@
+---
+title: SGAH - Modelo Relacional (3FN) - Iteracion 3, Abril 2026
+config:
+  theme: default
+  themeVariables:
+    fontSize: 13px
+---
+erDiagram
+    USERS ||--o{ AUDIT_LOGS : "user_id"
+    USERS ||--o{ DELIVERIES : "delivered_by"
+    USERS ||--o{ DELIVERIES : "exception_authorized_by"
+    USERS ||--o{ DISTRIBUTION_PLANS : "created_by"
+    USERS ||--o{ HEALTH_VECTORS : "reported_by"
+    USERS ||--o{ RELOCATIONS : "authorized_by"
+    USERS ||--o{ PRIVACY_CONSENTS : "accepted_by_user_id"
+    USERS ||--o{ INVENTORY_ADJUSTMENTS : "user_id"
+    USERS ||--o{ SCORING_CONFIG : "updated_by"
+    USERS ||--o{ ALERT_THRESHOLDS : "updated_by"
+
+    ZONES ||--o{ SHELTERS : "zone_id"
+    ZONES ||--o{ FAMILIES : "zone_id"
+    ZONES ||--o{ WAREHOUSES : "zone_id"
+    ZONES ||--o{ HEALTH_VECTORS : "zone_id"
+
+    SHELTERS ||--o{ FAMILIES : "shelter_id"
+    SHELTERS ||--o{ HEALTH_VECTORS : "shelter_id"
+    SHELTERS ||--o{ RELOCATIONS : "origin_shelter_id"
+    SHELTERS ||--o{ RELOCATIONS : "destination_shelter_id"
+
+    FAMILIES ||--|{ PERSONS : "family_id"
+    FAMILIES ||--|| PRIVACY_CONSENTS : "family_id"
+    FAMILIES ||--o{ DELIVERIES : "family_id"
+    FAMILIES ||--o{ RELOCATIONS : "family_id"
+    FAMILIES ||--o{ DISTRIBUTION_PLAN_ITEMS : "family_id"
+
+    WAREHOUSES ||--o{ INVENTORY : "warehouse_id"
+    WAREHOUSES ||--o{ DONATIONS : "destination_warehouse_id"
+    WAREHOUSES ||--o{ DELIVERIES : "source_warehouse_id"
+    WAREHOUSES ||--o{ DISTRIBUTION_PLAN_ITEMS : "source_warehouse_id"
+
+    RESOURCE_TYPES ||--o{ INVENTORY : "resource_type_id"
+    RESOURCE_TYPES ||--o{ DONATION_DETAILS : "resource_type_id"
+    RESOURCE_TYPES ||--o{ DELIVERY_DETAILS : "resource_type_id"
+    RESOURCE_TYPES ||--o| ALERT_THRESHOLDS : "resource_type_id"
+
+    INVENTORY ||--o{ INVENTORY_ADJUSTMENTS : "inventory_id"
+
+    DONORS ||--o{ DONATIONS : "donor_id"
+    DONATIONS ||--o{ DONATION_DETAILS : "donation_id"
+
+    DELIVERIES ||--|{ DELIVERY_DETAILS : "delivery_id"
+    DISTRIBUTION_PLANS ||--|{ DISTRIBUTION_PLAN_ITEMS : "plan_id"
+    DISTRIBUTION_PLAN_ITEMS ||--o| DELIVERIES : "delivery_id"
+
+    USERS {
+        bigserial id PK
+        varchar email UK
+        varchar name
+        varchar password_hash
+        role_enum role
+        boolean is_active
+        smallint failed_login_attempts
+        timestamp locked_until
+        timestamp last_login_at
+        boolean password_must_change
+        timestamp created_at
+        timestamp updated_at
+    }
+    AUDIT_LOGS {
+        bigserial id PK
+        varchar action
+        varchar module
+        varchar entity
+        bigint entity_id
+        bigint user_id FK
+        jsonb before
+        jsonb after
+        inet ip_address
+        varchar user_agent
+        timestamp created_at
+    }
+    SCORING_CONFIG {
+        varchar key PK
+        decimal value
+        bigint updated_by FK
+        timestamp updated_at
+    }
+    ALERT_THRESHOLDS {
+        bigserial id PK
+        bigint resource_type_id FK
+        integer min_quantity
+        bigint updated_by FK
+        timestamp updated_at
+    }
+    ZONES {
+        bigserial id PK
+        varchar name UK
+        risk_level_enum risk_level
+        decimal latitude
+        decimal longitude
+        integer estimated_population
+        timestamp created_at
+        timestamp updated_at
+    }
+    SHELTERS {
+        bigserial id PK
+        varchar name
+        varchar address
+        bigint zone_id FK
+        shelter_type_enum type
+        integer max_capacity
+        integer current_occupancy
+        decimal latitude
+        decimal longitude
+        timestamp created_at
+        timestamp updated_at
+    }
+    FAMILIES {
+        bigserial id PK
+        varchar family_code UK
+        varchar head_document
+        bigint zone_id FK
+        bigint shelter_id FK
+        integer num_members
+        integer num_children_under_5
+        integer num_adults_over_65
+        integer num_pregnant
+        integer num_disabled
+        decimal priority_score
+        jsonb priority_score_breakdown
+        family_status_enum status
+        decimal latitude
+        decimal longitude
+        varchar reference_address
+        timestamp created_at
+        timestamp updated_at
+    }
+    PERSONS {
+        bigserial id PK
+        bigint family_id FK
+        varchar name
+        varchar document UK
+        date birth_date
+        char gender
+        relationship_enum relationship
+        array special_conditions
+        boolean requires_medication
+        timestamp created_at
+        timestamp updated_at
+    }
+    PRIVACY_CONSENTS {
+        bigserial id PK
+        bigint family_id FK
+        timestamp accepted_at
+        bigint accepted_by_user_id FK
+        varchar law_version
+        inet ip_address
+    }
+    WAREHOUSES {
+        bigserial id PK
+        varchar name UK
+        varchar address
+        bigint zone_id FK
+        decimal max_capacity_kg
+        decimal current_weight_kg
+        warehouse_status_enum status
+        decimal latitude
+        decimal longitude
+        timestamp created_at
+        timestamp updated_at
+    }
+    RESOURCE_TYPES {
+        bigserial id PK
+        varchar name
+        resource_category_enum category
+        varchar unit_of_measure
+        decimal unit_weight_kg
+        boolean is_active
+        timestamp created_at
+        timestamp updated_at
+    }
+    INVENTORY {
+        bigserial id PK
+        bigint warehouse_id FK
+        bigint resource_type_id FK
+        integer available_quantity
+        decimal total_weight_kg
+        varchar batch
+        date expiration_date
+        timestamp created_at
+        timestamp updated_at
+    }
+    INVENTORY_ADJUSTMENTS {
+        bigserial id PK
+        bigint inventory_id FK
+        integer delta
+        adjustment_reason_enum reason
+        varchar reason_note
+        bigint user_id FK
+        timestamp created_at
+    }
+    DONORS {
+        bigserial id PK
+        varchar name
+        donor_type_enum type
+        varchar contact
+        varchar tax_id
+        boolean is_active
+        timestamp created_at
+        timestamp updated_at
+    }
+    DONATIONS {
+        bigserial id PK
+        varchar donation_code UK
+        bigint donor_id FK
+        bigint destination_warehouse_id FK
+        donation_type_enum donation_type
+        decimal monetary_amount
+        timestamp date
+        timestamp created_at
+        timestamp updated_at
+    }
+    DONATION_DETAILS {
+        bigserial id PK
+        bigint donation_id FK
+        bigint resource_type_id FK
+        integer quantity
+        decimal weight_kg
+    }
+    DISTRIBUTION_PLANS {
+        bigserial id PK
+        varchar plan_code UK
+        bigint created_by FK
+        plan_status_enum status
+        plan_scope_enum scope
+        bigint scope_id
+        text notes
+        timestamp created_at
+        timestamp updated_at
+    }
+    DISTRIBUTION_PLAN_ITEMS {
+        bigserial id PK
+        bigint plan_id FK
+        bigint family_id FK
+        bigint source_warehouse_id FK
+        integer target_coverage_days
+        plan_item_status_enum status
+        bigint delivery_id FK
+    }
+    DELIVERIES {
+        bigserial id PK
+        varchar delivery_code UK
+        bigint family_id FK
+        bigint source_warehouse_id FK
+        bigint delivered_by FK
+        bigint exception_authorized_by FK
+        varchar exception_reason
+        timestamp delivery_date
+        integer coverage_days
+        delivery_status_enum status
+        varchar received_by_document
+        decimal delivery_latitude
+        decimal delivery_longitude
+        varchar client_op_id UK
+        timestamp created_at
+        timestamp updated_at
+    }
+    DELIVERY_DETAILS {
+        bigserial id PK
+        bigint delivery_id FK
+        bigint resource_type_id FK
+        integer quantity
+        decimal weight_kg
+    }
+    HEALTH_VECTORS {
+        bigserial id PK
+        vector_type_enum vector_type
+        risk_level_enum risk_level
+        vector_status_enum status
+        text actions_taken
+        decimal latitude
+        decimal longitude
+        bigint zone_id FK
+        bigint shelter_id FK
+        bigint reported_by FK
+        timestamp reported_date
+        timestamp created_at
+        timestamp updated_at
+    }
+    RELOCATIONS {
+        bigserial id PK
+        bigint family_id FK
+        bigint origin_shelter_id FK
+        bigint destination_shelter_id FK
+        relocation_type_enum type
+        timestamp relocation_date
+        varchar reason
+        bigint authorized_by FK
+        timestamp created_at
+    }

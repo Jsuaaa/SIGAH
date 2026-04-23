@@ -1,318 +1,356 @@
-# SIGAH - Humanitarian Aid Management System
+# SIGAH - Sistema de Gestión y Distribución de Ayudas Humanitarias
 
 ## Context
 
-The 2026 flood in Monteria displaced ~10,000 people. A backend system is needed to register affected families, manage aid inventory (20,000 kg warehouse capacity), track donations by source (city hall, state government, private companies, citizens), distribute aid prioritizing vulnerable families, and prevent duplicate deliveries. The system must guarantee a minimum of 3 days of coverage per delivery and maintain full transparency. All entities with a physical location (shelters, warehouses, families) include geographic coordinates for map visualization.
+En 2026, Montería registró una de las inundaciones más fuertes en la zona de la margen izquierda, dejando a ~50.000 personas afectadas (~12.000 familias, ~10.000 desplazados en refugios) sin acceso a alimentos básicos, techo y elementos de uso diario. Se estableció un centro de distribución con capacidad total de **20.000 kg** y recursos provenientes de alcaldía, gobernación, empresas privadas y ciudadanos.
 
-**Stack**: Node.js + Express | PostgreSQL | Prisma (ORM) | JWT auth | React + TypeScript + Vite (frontend) | Monolith (single service)
+El sistema debe:
+- Registrar de forma unificada a las familias afectadas y sus miembros con datos veraces (incluyendo consentimiento Ley 1581/2012).
+- Priorizar a las familias más vulnerables (niños <5, adultos >65, gestantes, personas con discapacidad, riesgo de la zona, días sin ayuda) con una fórmula configurable.
+- Garantizar cobertura mínima de **3 días** por entrega (0,6 kg/persona/día de alimentos) y evitar duplicidad.
+- Mantener trazabilidad completa desde el donante hasta la familia beneficiaria.
+- Geolocalizar familias, refugios, bodegas y puntos de entrega para optimizar la logística.
+- Monitorear focos sanitarios (vectores) por zona/refugio.
+- Funcionar **mobile-first** (90% del trabajo de campo se hace desde smartphone) y **offline** — datos se guardan localmente y se sincronizan al recuperar conexión.
+- Registrar un historial de auditoría inalterable de todas las acciones.
 
-**Architecture**: Monolithic — the Express server serves both the REST API (`/api/v1`) and the compiled React frontend (static files from `client/dist/`). In development, Vite's dev server proxies API requests to Express.
+**Stack**: Node.js + Express 5 | TypeScript strict | PostgreSQL + Prisma 7 | JWT | React 19 + Vite 8 + TypeScript | PWA (Service Worker + IndexedDB) | Monolito
 
----
-
-## Database Schema (16 tables)
-
-### Geography and shelters
-- **zones** - Affected geographic zones (name, risk_level: low/medium/high/critical, latitude, longitude, estimated_population)
-- **shelters** - Temporary shelters (name, address, zone_id FK, max_capacity, current_occupancy, type, latitude, longitude)
-
-### Population census
-- **families** - Family units (family_code, head_document, zone_id FK, shelter_id FK, num_members, num_children_under_5, num_adults_over_65, num_pregnant, num_disabled, priority_score, status, latitude, longitude, reference_address)
-- **persons** - Individual members (family_id FK, name, document, birth_date, gender, relationship, special_conditions[], requires_medication)
-
-### Resources and inventory
-- **warehouses** - Physical storage facilities (name, address, latitude, longitude, max_capacity_kg, current_weight_kg, status: active/inactive, zone_id FK)
-- **resource_types** - Aid type catalog (name, category: food/shelter/hygiene/health, unit_of_measure, unit_weight_kg)
-- **inventory** - Current stock per warehouse and resource_type (warehouse_id FK, resource_type_id FK, available_quantity, total_weight_kg, batch, expiration_date)
-
-### Donations
-- **donors** - Donor registry (name, type: city_hall/state_government/private_company/citizen/ngo, tax_id)
-- **donations** - Donation events (donor_id FK, destination_warehouse_id FK, donation_type: in_kind/monetary/mixed, monetary_amount, date)
-- **donation_details** - In-kind donated items (donation_id FK, resource_type_id FK, quantity, weight_kg)
-
-### Distribution
-- **deliveries** - Aid deliveries to families (family_id FK, source_warehouse_id FK, delivery_date, delivered_by FK, received_by_document, coverage_days CHECK >= 3, status, delivery_latitude, delivery_longitude)
-- **delivery_details** - Delivered items (delivery_id FK, resource_type_id FK, quantity, weight_kg)
-
-### Operations
-- **users** - System users (email, password_hash, role: admin/coordinator/operator/viewer)
-- **health_vectors** - Sanitary vectors per zone/shelter (vector_type, risk_level, actions_taken, latitude, longitude)
-- **relocations** - Family relocation records (family_id FK, origin_shelter_id, destination_shelter_id, type: temporary/permanent)
+**Arquitectura**: Monolítica — Express sirve la API REST (`/api/v1`) y el frontend React compilado (`client/dist/`). En desarrollo, Vite proxy-a peticiones `/api` a Express (puerto 3000). En producción ambos se sirven desde el mismo origen.
 
 ---
 
-## API Modules (prefix `/api/v1`)
+## Database Schema (22 tablas)
+
+### Seguridad y auditoría
+- **users** — Usuarios del sistema (email único, password_hash, name, role, is_active, failed_login_attempts, locked_until, last_login_at, password_must_change, created_at, updated_at)
+- **audit_logs** — Historial inmutable (action, module, entity, entity_id, user_id, before JSON, after JSON, ip_address, user_agent, created_at). UPDATE/DELETE prohibidos a nivel de BD (permisos SQL).
+- **scoring_config** — Pesos y parámetros configurables de la fórmula de priorización (key, value Float, updated_by FK users, updated_at). Editable por ADMIN / LOGISTICS_COORDINATOR.
+- **alert_thresholds** — Umbral de stock bajo configurable por recurso (resource_type_id FK, min_quantity, updated_by, updated_at).
+
+### Geografía y refugios
+- **zones** — Zonas geográficas afectadas (name, risk_level: LOW/MEDIUM/HIGH/CRITICAL, latitude, longitude, estimated_population)
+- **shelters** — Refugios temporales (name, address, zone_id FK, max_capacity, current_occupancy, type, latitude NOT NULL, longitude NOT NULL)
+
+### Censo poblacional
+- **families** — Unidades familiares (family_code, head_document, zone_id FK, shelter_id FK opcional, num_members, num_children_under_5, num_adults_over_65, num_pregnant, num_disabled, priority_score Float, priority_score_breakdown JSON, status: ACTIVE/IN_SHELTER/EVACUATED, latitude opcional, longitude opcional, reference_address opcional)
+- **persons** — Miembros individuales (family_id FK, name, document único, birth_date, gender, relationship: SPOUSE/CHILD/PARENT/SIBLING/OTHER, special_conditions[], requires_medication)
+- **privacy_consents** — Aceptaciones del aviso de privacidad (family_id FK, accepted_at, accepted_by_user_id FK users, law_version = "Ley 1581/2012", ip_address)
+
+### Recursos e inventario
+- **warehouses** — Bodegas físicas (name, address, latitude NOT NULL, longitude NOT NULL, max_capacity_kg, current_weight_kg, status: ACTIVE/INACTIVE, zone_id FK)
+- **resource_types** — Catálogo de tipos de ayuda (name, category: FOOD/BLANKET/MATTRESS/HYGIENE/MEDICATION, unit_of_measure, unit_weight_kg, is_active). Unique (name, category).
+- **inventory** — Stock actual por bodega y recurso (warehouse_id FK, resource_type_id FK, available_quantity, total_weight_kg, batch, expiration_date). Unique (warehouse_id, resource_type_id, batch).
+- **inventory_adjustments** — Historial de ajustes manuales (inventory_id FK, delta Int, reason: SHRINKAGE/DAMAGE/RETURN/CORRECTION, reason_note, user_id FK, created_at)
+
+### Donaciones
+- **donors** — Registro de donantes (name, type: INDIVIDUAL/COMPANY/CITY_HALL/GOVERNOR_OFFICE/ORGANIZATION, contact, tax_id opcional). Unique (name, type).
+- **donations** — Eventos de donación (donation_code, donor_id FK, destination_warehouse_id FK, donation_type: IN_KIND/MONETARY/MIXED, monetary_amount, date)
+- **donation_details** — Recursos de donaciones en especie (donation_id FK, resource_type_id FK, quantity, weight_kg)
+
+### Distribución
+- **distribution_plans** — Plan priorizado (plan_code `PLN-2026-NNNNN`, created_by FK users, status: SCHEDULED/IN_PROGRESS/COMPLETED/CANCELLED, scope: GLOBAL/ZONE/SHELTER/BATCH, scope_id opcional, notes, created_at)
+- **distribution_plan_items** — Asignaciones del plan (plan_id FK, family_id FK, source_warehouse_id FK, target_coverage_days, status: PENDING/DELIVERED/UNATTENDED, delivery_id FK nullable)
+- **deliveries** — Entregas a familias (delivery_code `DEL-2026-NNNNN`, family_id FK, source_warehouse_id FK, plan_item_id FK opcional, delivery_date, delivered_by FK, received_by_document, coverage_days CHECK >= 3, status: SCHEDULED/IN_PROGRESS/DELIVERED, delivery_latitude, delivery_longitude, exception_reason opcional, exception_authorized_by FK users opcional, client_op_id único opcional)
+- **delivery_details** — Ítems entregados (delivery_id FK, resource_type_id FK, quantity, weight_kg)
+
+### Operaciones
+- **health_vectors** — Vectores sanitarios (vector_type: CONTAMINATED_WATER/INSECTS/RODENTS/OTHER, risk_level: LOW/MEDIUM/HIGH/CRITICAL, status: ACTIVE/IN_PROGRESS/RESOLVED, actions_taken, latitude, longitude, zone_id FK opcional, shelter_id FK opcional, reported_date, reported_by FK)
+- **relocations** — Traslados de familia (family_id FK, origin_shelter_id FK, destination_shelter_id FK, type: TEMPORARY/PERMANENT, relocation_date, reason, authorized_by FK)
+
+---
+
+## API Modules (prefijo `/api/v1`) — 18 módulos
 
 ### 1. Auth (`/auth`)
-- POST `/login` (public), POST `/register` (admin), GET `/me`, PUT `/change-password`
-- JWT with 8h expiration, payload: { id, email, role }
+- POST `/login` (público, con lockout tras 5 intentos), POST `/register` (ADMIN)
+- GET `/me`, PUT `/change-password`
+- POST `/reset-password/:userId` (ADMIN asigna contraseña temporal)
+- PUT `/users/:id` (activar/desactivar — RF-41), GET `/users` (ADMIN)
+- JWT 8h. Payload: `{ id, email, role, name }`. Si `password_must_change=true`, el cliente obliga al flujo de cambio.
 
 ### 2. Families (`/families`)
-- Full CRUD + GET `/:id/persons` + GET `/:id/deliveries` + GET `/:id/eligibility`
+- CRUD + GET `/:id/persons` + GET `/:id/deliveries` + GET `/:id/eligibility`
+- POST exige `privacy_consent_accepted=true` (RN-09); persiste en `privacy_consents` en la misma transacción.
+- GET `/search?q=X` unificada por `family_code|head_document|reference_address` con respuesta <2s (RNF-04).
 
 ### 3. Persons (`/persons`)
 - CRUD + GET `/search?document=X`
+- Cambios en composición recalculan `priority_score` automáticamente (RN-08).
 
 ### 4. Zones (`/zones`)
 - CRUD + GET `/:id/families` + GET `/:id/shelters` + GET `/:id/warehouses`
 
 ### 5. Shelters (`/shelters`)
-- CRUD + PUT `/:id/occupancy`
+- CRUD + PUT `/:id/occupancy` (valida max_capacity)
 
 ### 6. Warehouses (`/warehouses`)
-- CRUD + GET `/:id/inventory` + GET `/nearest?lat=X&lng=Y` (nearest warehouse with stock)
+- CRUD + GET `/:id/inventory` + GET `/nearest?lat=X&lng=Y`
+- Alerta visible al 85% de capacidad; rechaza entradas que superen 100% (HU-11 CA3-4).
 
-### 7. Inventory (`/resource-types`, `/inventory`)
-- CRUD resource_types + GET inventory by warehouse + GET `/summary` + GET `/alerts` + PUT `/:id/adjustment`
+### 7. Inventory (`/resource-types`, `/inventory`, `/alert-thresholds`)
+- CRUD `/resource-types` con `is_active`
+- GET `/inventory?warehouse_id=X` + GET `/summary` + GET `/alerts`
+- PUT `/inventory/:id/adjustment` exige `reason` enum + `reason_note`; rechaza si resultado < 0; queda en `inventory_adjustments` y `audit_logs`.
+- GET/PUT `/alert-thresholds` por recurso (HU-16 CA2).
 
 ### 8. Donors and Donations (`/donors`, `/donations`)
-- CRUD donors + POST/GET donations (creating an in-kind donation transactionally updates destination warehouse inventory)
+- CRUD donors con nuevo enum y `contact` requerido; unique (name, type).
+- POST donations (si es IN_KIND/MIXED, transacción `prisma.$transaction()` que actualiza inventario de bodega destino).
+- GET `/donors/:id/donations` (historial por donante — HU-20).
 
 ### 9. Deliveries (`/deliveries`)
-- POST create delivery (validates eligibility, warehouse stock, minimum 3 days, decrements inventory in transaction)
-- POST `/batch` - batch delivery to the top N highest-priority families
-- GET list + GET `/:id` + PUT `/:id/status`
+- POST crear entrega (valida elegibilidad, stock, cobertura mínima, decrementa inventario en transacción). Acepta header `Idempotency-Key` para sincronización offline.
+- POST `/batch` — entrega directa a las top N familias prioritarias (independiente del plan).
+- POST `/exception` — entrega anticipada (solo LOGISTICS_COORDINATOR, con justificación — HU-23 CA5).
+- GET lista + GET `/:id` + PUT `/:id/status` (SCHEDULED → IN_PROGRESS → DELIVERED).
 
-### 10. Prioritization (`/prioritization`)
+### 10. Distribution Plans (`/distribution-plans`) — HU-21
+- POST `/` — genera plan priorizado para scope (GLOBAL/ZONE/SHELTER/BATCH). Incluye familias elegibles, las ordena por puntaje, asigna recursos respetando stock y cobertura mínima, marca sin atender si hay insuficiencia. Guarda como SCHEDULED.
+- GET lista + GET `/:id` (con items).
+- POST `/:id/execute` — materializa entregas desde el plan.
+- PUT `/:id/cancel`.
+
+### 11. Prioritization (`/prioritization`)
 - GET `/ranking` + POST `/recalculate` + GET `/next-batch?count=N`
+- Lee pesos desde `scoring_config`; respuesta incluye `priority_score_breakdown` por factor (HU-08 CA2).
 
-### 11. Reports (`/reports`)
-- GET `/coverage`, `/inventory`, `/donations-by-type`, `/deliveries-by-zone`, `/unattended-families`, `/dashboard`
+### 12. Scoring Config (`/scoring-config`) — HU-08 CA5
+- GET (autenticado) + PUT (ADMIN / LOGISTICS_COORDINATOR)
+- Al actualizar, invalida caché del servicio de priorización.
 
-### 12. Health Vectors (`/health/vectors`)
-- CRUD sanitary vectors
+### 13. Reports (`/reports`)
+- GET `/coverage`, `/inventory`, `/donations-by-type`, `/deliveries-by-zone`, `/zones-without-deliveries`, `/unattended-families`, `/traceability`, `/dashboard`
+- Cada endpoint acepta `?format=json|pdf|xlsx` (HU-28 CA4, HU-29 CA5).
+- `/traceability` (HU-29): rastrea recurso desde donante → bodega → entrega → familia.
 
-### 13. Relocations (`/relocations`)
-- POST create + GET list
+### 14. Health Vectors (`/health/vectors`)
+- CRUD + PUT `/:id/status` (ACTIVE/IN_PROGRESS/RESOLVED — HU-25 CA3)
+- Filtrable por zona, refugio, risk_level, vector_type, status.
 
-### 14. Map (`/map`)
-- GET `/shelters` - all shelters with coordinates and occupancy
-- GET `/warehouses` - all warehouses with coordinates and stock level
-- GET `/families` - families with location (coordinates + status + priority only, no sensitive data)
-- GET `/vectors` - geolocated sanitary vectors
-- GET `/zone/:id` - all geolocated entities within a zone
-- GET `/recent-deliveries` - recent delivery points with coordinates
+### 15. Relocations (`/relocations`)
+- POST crea traslado (actualiza family.shelter_id, ajusta ocupación origen y destino, valida max_capacity destino — HU-24 CA3).
+- GET lista con filtros.
+
+### 16. Map (`/map`)
+- GET `/shelters`, `/warehouses`, `/families`, `/vectors`, `/zone/:id`, `/recent-deliveries`, `/zones-without-deliveries`
+- Family endpoint excluye datos sensibles (solo coordenadas, estado, prioridad).
+
+### 17. Audit Log (`/audit`) — RF-40, RNF-09
+- GET lista filtrable por usuario, módulo, rango de fechas. Solo accesible a CONTROL_OFFICER / ADMIN.
+- Sin endpoints de mutación. Escritura únicamente por el middleware interno.
+
+### 18. Sync (`/sync`) — Offline support
+- POST `/sync` — batch de mutaciones offline con deduplicación por `client_op_id`.
+- GET `/sync/status` — última marca de sincronización por cliente.
 
 ---
 
 ## Prioritization Algorithm
 
+Fórmula base (pesos provienen de `scoring_config`):
 ```
-score = (2 * num_members)
-      + (5 * num_children_under_5)
-      + (4 * num_adults_over_65)
-      + (5 * num_pregnant)
-      + (4 * num_disabled)
-      + (3 * zone_risk_factor)           // low=1, medium=2, high=3, critical=4
-      + (1.5 * days_without_aid)         // max 30
-      - (2 * deliveries_received)
+score = (W_MEMBERS * num_members)
+      + (W_CHILDREN_5 * num_children_under_5)
+      + (W_ADULTS_65 * num_adults_over_65)
+      + (W_PREGNANT * num_pregnant)
+      + (W_DISABLED * num_disabled)
+      + (W_ZONE_RISK * zone_risk_factor)     // LOW=1, MEDIUM=2, HIGH=3, CRITICAL=4
+      + (W_DAYS_NO_AID * days_without_aid)   // capado en MAX_DAYS
+      - (W_DELIVERIES * deliveries_received)
 ```
 
-Recalculated: on delivery creation, on family composition change, and on demand.
+**Pesos iniciales (seed de `scoring_config`)**: W_MEMBERS=2, W_CHILDREN_5=5, W_ADULTS_65=4, W_PREGNANT=5, W_DISABLED=4, W_ZONE_RISK=3, W_DAYS_NO_AID=1.5, W_DELIVERIES=2, MAX_DAYS=30.
+
+**Recálculo**: al crear entrega (RN-08), al cambiar composición familiar, o por endpoint `POST /prioritization/recalculate`.
+
+La respuesta de ranking y detalle familia incluye `priority_score_breakdown` con cada factor desglosado (HU-08 CA2).
 
 ---
 
 ## Key Business Rules
 
-1. **Duplicate prevention**: Cannot deliver to a family whose previous coverage has not expired
-2. **Minimum 3 days**: Each delivery must cover at least 3 days (0.6 kg/person/day of food)
-3. **Warehouse capacity**: Each warehouse has its own max_capacity_kg; current_weight_kg cannot exceed it
-4. **Atomic transactions**: Deliveries and donations use DB transactions to maintain inventory consistency
-5. **Sequential codes**: FAM-2026-00001, DON-2026-00001, DEL-2026-00001
-6. **Required coordinates**: Shelters and warehouses require latitude/longitude on creation; families register them optionally
+1. **RN-01 — Cobertura mínima**: cada entrega cubre al menos 3 días (0,6 kg/persona/día de alimentos).
+2. **RN-02 — Prevención de duplicidad**: no se entrega ayuda a una familia cuya cobertura anterior no ha expirado. Excepción: autorizada por LOGISTICS_COORDINATOR con justificación.
+3. **RN-03 — Capacidad de bodega**: `current_weight_kg` no puede superar `max_capacity_kg`. Alerta al 85%, bloqueo al 100%.
+4. **RN-04 — Priorización**: fórmula configurable en `scoring_config` (pesos editables sin tocar código).
+5. **RN-05 — Descuento automático**: al confirmar entrega, el inventario de la bodega de origen se decrementa en la misma transacción.
+6. **RN-06 — Trazabilidad completa**: todo recurso rastreable desde donante → bodega → entrega → familia (endpoint `/reports/traceability`).
+7. **RN-07 — Códigos secuenciales**: `FAM-2026-NNNNN`, `DON-2026-NNNNN`, `DEL-2026-NNNNN`, `PLN-2026-NNNNN`.
+8. **RN-08 — Recálculo de prioridad**: al crear entrega, al cambiar composición del hogar, o bajo petición manual del coordinador.
+9. **RN-09 — Aviso de privacidad**: toda creación de familia requiere `privacy_consent_accepted=true` (Ley 1581/2012). Se persiste en `privacy_consents`.
+10. **RN-10 — Ubicación requerida**: refugios y bodegas deben registrar latitud/longitud al crearse (NOT NULL). Las familias registran coordenadas opcionalmente.
+11. **Transacciones atómicas**: donaciones, entregas, ajustes de inventario y traslados usan `prisma.$transaction()` para consistencia.
+12. **Auditoría inalterable**: toda mutación pasa por el middleware que crea un registro en `audit_logs`. El usuario de la BD de la app tiene solo INSERT/SELECT sobre esa tabla (UPDATE/DELETE revocados).
 
 ---
 
-## Project Structure (Monolith)
+## Project Structure (Monolito)
 
 ```
 SIGAH/
-├── package.json                          # Root: orchestration scripts (dev, build, start)
+├── package.json                          # Root: scripts dev, build, start, test
 ├── .gitignore
 │
-├── server/                               # Express backend
-│   ├── package.json                      # Backend dependencies and scripts
+├── server/                               # Backend TypeScript/Express
+│   ├── package.json                      # Deps y scripts del backend
+│   ├── tsconfig.json
 │   ├── .env / .env.example
 │   ├── prisma/
-│   │   ├── schema.prisma                 # Full DB schema
-│   │   ├── migrations/                   # Prisma-generated migrations
-│   │   └── seed.js                       # Initial data
+│   │   ├── schema.prisma                 # 22 tablas
+│   │   ├── migrations/                   # Migraciones generadas por Prisma
+│   │   └── seed.ts                       # Admin + scoring_config + catálogo recursos
 │   ├── src/
-│   │   ├── index.js                      # Entry point (serves API + client/dist in production)
-│   │   ├── app.js                        # Express config
+│   │   ├── index.ts                      # Entry point (API + client/dist en prod)
+│   │   ├── app.ts                        # Config Express
 │   │   ├── config/
-│   │   │   ├── prisma.js                 # PrismaClient instance (singleton)
-│   │   │   ├── env.js                    # Environment variables
-│   │   │   └── constants.js              # Business constants
-│   │   ├── routes/                       # 14 route files
-│   │   ├── controllers/                  # 14 controllers
-│   │   ├── services/                     # 14 services (business logic, use Prisma Client directly)
+│   │   │   ├── prisma.ts                 # PrismaClient singleton con PrismaPg adapter
+│   │   │   ├── env.ts
+│   │   │   └── constants.ts              # Constantes de negocio
+│   │   ├── routes/                       # 18 archivos de rutas
+│   │   ├── controllers/                  # 18 controladores
+│   │   ├── services/                     # 18 servicios
 │   │   ├── middlewares/
-│   │   │   ├── auth.middleware.js        # JWT verification
-│   │   │   ├── role.middleware.js        # Role-based access control
-│   │   │   ├── validate.middleware.js    # express-validator
-│   │   │   └── errorHandler.middleware.js# Global error handler
-│   │   ├── validators/                   # Per-module validations
+│   │   │   ├── auth.middleware.ts        # JWT
+│   │   │   ├── role.middleware.ts        # authorize(...roles)
+│   │   │   ├── audit.middleware.ts       # Registra mutaciones en audit_logs
+│   │   │   ├── idempotency.middleware.ts # Idempotency-Key para /deliveries
+│   │   │   ├── validate.middleware.ts
+│   │   │   └── errorHandler.middleware.ts
+│   │   ├── validators/
 │   │   └── utils/
-│   │       ├── AppError.js
-│   │       ├── asyncHandler.js
-│   │       └── pagination.js
+│   │       ├── AppError.ts
+│   │       ├── asyncHandler.ts
+│   │       ├── pagination.ts
+│   │       ├── codeGenerator.ts          # FAM/DON/DEL/PLN
+│   │       └── exporters/                # pdf.ts, xlsx.ts
 │   └── tests/
-│       ├── unit/                         # Service tests
-│       └── integration/                  # Tests with supertest
+│       ├── unit/
+│       └── integration/
 │
-└── client/                               # React frontend (see FRONTEND-PLAN.md)
-    ├── package.json                      # Frontend dependencies and scripts
-    ├── vite.config.ts                    # Vite config with API proxy to server
-    ├── index.html
-    ├── public/
-    └── src/                              # React application source
+└── client/                               # Frontend React (ver FRONTEND-PLAN.md)
+    ├── package.json
+    ├── vite.config.ts                    # Vite + proxy /api + vite-plugin-pwa
+    ├── index.html                        # Con manifest PWA
+    ├── public/                           # manifest.webmanifest, icons, marker-icons
+    └── src/
+        ├── lib/offlineQueue.ts           # Dexie + cola de mutaciones
+        ├── lib/sw.ts                     # Service Worker config
+        ├── context/SyncContext.tsx       # Estado de conexión y cola
+        └── ...                           # Ver FRONTEND-PLAN.md
 ```
 
-> **Note**: There is no repository layer. Prisma Client acts as both ORM and data access layer. Services interact with `prisma` directly, using `prisma.$transaction()` for atomic operations.
+> **Nota**: No hay capa de repositorio. Prisma Client actúa como ORM y capa de acceso a datos. Los servicios interactúan directamente con `prisma`, usando `prisma.$transaction()` para operaciones atómicas.
 
-### Monolith Scripts (root package.json)
+### Scripts del monolito (root `package.json`)
 
-| Script | Command | Description |
+| Script | Comando | Descripción |
 |--------|---------|-------------|
-| `npm run dev` | `concurrently` server + client | Development: Express API (port 3000) + Vite HMR (port 5173) |
-| `npm run build` | `npm --prefix client run build` | Build React app to `client/dist/` |
-| `npm start` | `npm --prefix server run start` | Production: Express serves API + `client/dist/` |
-| `npm test` | `npm --prefix server run test` | Run backend tests |
-| `npm run install:all` | install server + client | Install all dependencies |
+| `npm run dev` | `concurrently` server + client | API (puerto 3000) + Vite HMR (5173) |
+| `npm run build` | build client + tsc server | Compila frontend y backend |
+| `npm start` | `npm --prefix server run start` | Producción |
+| `npm test` | `npm --prefix server run test` | Tests del backend |
+| `npm run install:all` | install en ambos subproyectos | |
 
-### Production Serving
+### Producción
 
-In production, `server/src/index.js` serves the compiled frontend:
-```js
-// After API routes
+`server/src/index.ts` sirve el frontend compilado:
+```ts
 app.use(express.static(path.join(__dirname, '../../client/dist')));
-app.get('*', (req, res) => {
+app.get('*', (_req, res) => {
   res.sendFile(path.join(__dirname, '../../client/dist/index.html'));
 });
-```
-
-### Development Proxy
-
-In development, `client/vite.config.ts` proxies API calls to Express:
-```ts
-server: {
-  proxy: {
-    '/api': { target: 'http://localhost:3000', changeOrigin: true }
-  }
-}
 ```
 
 ---
 
 ## Main Libraries
 
-| Library | Purpose |
-|---------|---------|
-| express ^4.18 | HTTP framework |
-| @prisma/client ^6 | ORM - data access |
-| prisma ^6 (devDep) | Migration CLI and client generation |
-| bcrypt ^5.1 | Password hashing |
-| jsonwebtoken ^9.0 | JWT authentication |
-| express-validator ^7.0 | Request validation |
-| cors, helmet, morgan | Security and HTTP logging |
-| dotenv ^16.3 | Environment variables |
-| jest ^29 + supertest ^6.3 | Testing |
+### Backend
+| Librería | Uso |
+|---|---|
+| express ^5 | Framework HTTP |
+| @prisma/client ^7 | ORM |
+| @prisma/adapter-pg ^7 | Adapter PostgreSQL |
+| prisma ^7 (devDep) | Migraciones y generación de cliente |
+| bcrypt ^6 | Hash de contraseñas |
+| jsonwebtoken ^9 | JWT |
+| express-validator ^7 | Validación de requests |
+| express-rate-limit | Rate limiting en `/auth/login` |
+| cors, helmet, morgan | Seguridad y logging |
+| exceljs, pdfkit | Exportes Excel y PDF (HU-28, HU-29) |
+| dotenv, tsx, typescript | Base |
+| jest ^30 + supertest ^7 | Tests |
+
+### Frontend (detalles en FRONTEND-PLAN.md)
+React 19, Vite 8, TanStack Query/Form/Table, Tailwind 4, Leaflet, Recharts, Axios, Zod, **vite-plugin-pwa**, **workbox-window**, **dexie**, **jspdf**/**xlsx**/**file-saver**.
 
 ---
 
-## Implementation Plan (12 steps)
+## Implementation Plan (15 pasos)
 
-### Step 1: Project initialization
-- Create monolith structure: root `package.json`, `server/`, `client/`
-- `npm init` in `server/`, install backend dependencies, create `server/src/` folder structure
-- Scaffold `client/` with Vite + React + TypeScript, install frontend dependencies
-- Configure `.env`, `.gitignore`, Vite proxy
-- `npx prisma init` in `server/` - generates `server/prisma/schema.prisma` with PostgreSQL datasource
-- Create `server/src/config/env.js`, `server/src/config/prisma.js` (PrismaClient singleton), `server/src/config/constants.js`
+### Paso 1: Inicialización del proyecto ✅
+Estructura del monolito, `server/` y `client/`, dependencias, Vite proxy, Prisma init, config de TS strict. Variables de entorno. **(Issues #1-#3)**
 
-### Step 2: Base infrastructure
-- `server/src/app.js` - Express config with global middlewares (cors, helmet, morgan, json parser) + static file serving for `client/dist/` in production
-- `server/src/index.js` - server startup with `prisma.$connect()` beforehand
-- `server/src/utils/AppError.js`, `asyncHandler.js`, `pagination.js`
-- `server/src/middlewares/errorHandler.middleware.js`, `validate.middleware.js`
+### Paso 2: Infraestructura base ✅
+`app.ts`, `index.ts`, utilidades (AppError, asyncHandler, pagination), error handler global, validate middleware. **(Issues #4-#6)**
 
-### Step 3: Authentication module
-- Define `User` model in schema.prisma
-- `npx prisma migrate dev --name add-users`
-- `auth.service.js` (register, login with bcrypt + JWT, uses Prisma Client)
-- `auth.middleware.js` (token verification)
-- `role.middleware.js` (role hierarchy)
-- Seed: initial admin user
+### Paso 3: Autenticación (v1) ✅
+Modelo User, migración, auth.service con bcrypt + JWT, auth y role middlewares, seed admin. **(Issues #7-#9)**
 
-### Step 4: Zones and shelters
-- `Zone`, `Shelter` models in schema.prisma (with latitude/longitude Float fields)
-- `npx prisma migrate dev --name add-zones-shelters`
-- Full CRUD for both entities
-- Seeds with sample zones and shelters (with real Monteria coordinates)
+### Paso 3.1: Adaptación Auth a requerimientos finales
+Migración `add-roles-and-user-fields`: renombra enum `Role` a los 6 valores finales (`ADMIN`, `CENSUS_TAKER`, `DELIVERY_OPERATOR`, `LOGISTICS_COORDINATOR`, `CONTROL_OFFICER`, `DONATION_REGISTRAR`), añade campos a User (name, is_active, failed_login_attempts, locked_until, last_login_at, password_must_change). Validator password >= 8 caracteres. Login con lockout tras 5 intentos. Seed actualiza name. Constantes: prefijo `DEL`, alerta 85%. **(Issue #9.1)**
 
-### Step 5: Families and persons (census)
-- `Family`, `Person` models in schema.prisma (Family with optional latitude/longitude, reference_address)
-- `npx prisma migrate dev --name add-families-persons`
-- CRUD families with sequential code generation
-- CRUD persons linked to family
-- Search by document
-- Validations (num_members > 0, etc.)
+### Paso 4: Zonas y refugios
+Modelos Zone, Shelter (coordenadas NOT NULL en Shelter). CRUD. Alerta de ocupación >90% en refugios. Seeds con zonas reales de Montería. **(Issues #10-#11)**
 
-### Step 6: Warehouses, resource types, and inventory
-- `Warehouse`, `ResourceType`, `Inventory` models in schema.prisma (Warehouse with latitude/longitude, max_capacity_kg)
-- `npx prisma migrate dev --name add-warehouses-inventory`
-- CRUD warehouses with coordinates
-- CRUD resource_types
-- Inventory endpoints per warehouse (current stock, summary, alerts, manual adjustment)
-- Warehouse capacity validation
-- Nearest warehouse endpoint
-- Seeds with base resource types and sample warehouses
+### Paso 5: Familias, personas y consentimiento de privacidad
+Modelos Family, Person, PrivacyConsent. Estado familia = ACTIVE/IN_SHELTER/EVACUATED. POST /families exige consentimiento. Código secuencial FAM. Triggers de composición que recalculan puntaje. **(Issues #12-#14)**
 
-### Step 7: Donors and donations
-- `Donor`, `Donation`, `DonationDetail` models in schema.prisma (Donation with destination_warehouse_id)
-- `npx prisma migrate dev --name add-donors-donations`
-- CRUD donors
-- Create donation with details (transaction via `prisma.$transaction()` that updates destination warehouse inventory)
-- Donation history by donor
+### Paso 6: Bodegas, recursos e inventario
+Modelos Warehouse (coordenadas NOT NULL), ResourceType (con is_active), Inventory, InventoryAdjustment, AlertThreshold. Ajustes manuales con motivo obligatorio. Alertas configurables. Bodega más cercana por Haversine. **(Issues #15-#17)**
 
-### Step 8: Prioritization algorithm
-- `prioritization.service.js` with scoring formula
-- Ranking endpoint
-- Bulk recalculation endpoint
-- Next batch endpoint
+### Paso 7: Donantes y donaciones
+Modelos Donor (nuevo enum, contact requerido, unique compuesto), Donation, DonationDetail. Creación transaccional que actualiza inventario bodega destino. Historial por donante. **(Issues #18-#19)**
 
-### Step 9: Delivery distribution
-- `Delivery`, `DeliveryDetail` models in schema.prisma (Delivery with source_warehouse_id, delivery_latitude, delivery_longitude)
-- `npx prisma migrate dev --name add-deliveries`
-- Eligibility verification (duplicate prevention)
-- Minimum ration calculation (3 days)
-- Transactional delivery creation (validate warehouse stock, decrement inventory, recalculate priority)
-- Batch delivery
+### Paso 8: Priorización configurable
+Tabla scoring_config con seed. `prioritization.service.ts` lee desde BD con caché invalidable. Endpoints GET/PUT /scoring-config. Ranking incluye breakdown. **(Issue #20-#21)**
 
-### Step 10: Health vectors and relocations
-- `HealthVector`, `Relocation` models in schema.prisma (HealthVector with latitude/longitude)
-- `npx prisma migrate dev --name add-health-relocations`
-- CRUD for both modules
+### Paso 9: Entregas
+Modelo Delivery (prefijo DEL, estados EN, excepciones), DeliveryDetail. Verificación de elegibilidad. Cálculo de ración mínima. Creación transaccional con Idempotency-Key. Entrega por lote. Excepción autorizada por coordinador. **(Issues #22-#24)**
 
-### Step 11: Map and reports
-- Map module: endpoints aggregating geolocated data from shelters, warehouses, families, vectors, and deliveries
-- Reports: coverage, inventory, donations by type, deliveries by zone
-- Unattended families (no delivery or expired coverage)
-- Dashboard with key metrics
+### Paso 10: Planes de distribución
+Modelos DistributionPlan, DistributionPlanItem. Generación priorizada con scope (GLOBAL/ZONE/SHELTER/BATCH). Estados SCHEDULED/IN_PROGRESS/COMPLETED/CANCELLED. Ejecución que materializa entregas. **(Issue #25)**
 
-### Step 12: Testing and documentation
-- Unit tests: prioritization, deliveries, inventory
-- Integration tests: auth flow, complete delivery flow
-- Test data seeds for demo (with real Monteria coordinates)
+### Paso 11: Salubridad y traslados
+Modelos HealthVector (con status y vector_type literal), Relocation. PUT /status para vectores. Traslados ajustan ocupación origen/destino. **(Issues #26-#27)**
+
+### Paso 12: Auditoría inmutable
+Tabla audit_logs, middleware de auditoría que registra mutaciones (before/after, IP, user_agent), GET /audit con filtros. Permisos SQL que prohíben UPDATE/DELETE sobre audit_logs. **(Issue #28)**
+
+### Paso 13: Mapa y reportes con export
+Endpoints de mapa (incluye zonas sin entregas). Reportes completos con `?format=json|pdf|xlsx`. Dashboard con indicadores clave. Reporte de trazabilidad donante→familia. **(Issues #29-#31)**
+
+### Paso 14: PWA + offline + sincronización
+Frontend: Service Worker, manifest, cache shell, Dexie para cola de ops offline, UI ConnectionBadge. Backend: `POST /sync` con deduplicación por `client_op_id`. Flujos offline-first para censo y entregas. **(Issue #32)**
+
+### Paso 15: Tests y seeds de demo
+Tests unitarios (priorización, elegibilidad, capacidad, lockout), tests de integración (auth completo, donación→inventario→entrega→recálculo, plan de distribución end-to-end, auditoría). Seed de demo con familias, donantes, bodegas, entregas reales de Montería. **(Issue #33)**
 
 ---
 
 ## Verification
 
-1. **Unit tests**: `npm test` (from root) - prioritization calculates correctly, deliveries validate eligibility and stock
-2. **Integration tests**: Complete auth flow, donation -> warehouse -> inventory -> delivery -> priority recalculated
-3. **Build**: `npm run build` (from root) - compiles React frontend to `client/dist/`
-4. **Production mode**: `npm start` - Express serves API at `/api/v1` and frontend at `/`
-5. **Development mode**: `npm run dev` - runs both Vite (port 5173) and Express (port 3000) concurrently
-6. **Manual**: Create families, register donations, execute deliveries, verify reports, attempt duplicates (should fail), attempt exceeding warehouse capacity (should fail), verify coordinates in map endpoints
+1. **Tests unitarios**: `npm test` desde la raíz. Cubren priorización, lockout, elegibilidad, capacidad de bodega, ración mínima, auditoría.
+2. **Tests de integración**: flujo completo auth (register, login, lockout, password_must_change, role protection); flujo donación → inventario → plan → entrega → auditoría.
+3. **Build**: `npm run build` desde la raíz — compila frontend y backend.
+4. **Modo producción**: `npm start` — Express sirve API en `/api/v1` y frontend en `/`.
+5. **Modo desarrollo**: `npm run dev` — Vite (5173) + Express (3000) concurrentes.
+6. **Ley 1581/2012**: intentar crear familia sin `privacy_consent_accepted=true` debe fallar con 400.
+7. **Offline**: desconectar red, registrar familia y entrega en frontend, reconectar — los registros deben sincronizarse vía `/sync`.
+8. **Auditoría**: verificar que un INTENTO de UPDATE sobre `audit_logs` falla (rol SQL de la app sin permisos).
+9. **Exports**: cada reporte descarga correctamente PDF y Excel.
+10. **RBAC**: los 6 roles ven solo las acciones que les corresponden según la matriz RBAC (FRONTEND-PLAN §7).
+11. **Capacidad bodega**: intentar cargar donación o ajuste que exceda `max_capacity_kg` debe fallar con 400.
+12. **Duplicidad entrega**: segunda entrega a familia con cobertura vigente falla con 409, a menos que LOGISTICS_COORDINATOR use `/deliveries/exception` con justificación.
+13. **Performance**: consulta `GET /families/search?q=X` responde en <2s con 12.000 familias (RNF-04).
