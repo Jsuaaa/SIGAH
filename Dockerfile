@@ -5,19 +5,22 @@
 # ==========================================
 FROM node:22-alpine AS frontend-builder
 
+# Install pnpm matching the version pinned in package.json → packageManager
+RUN npm install -g pnpm@10.30.1
+
 WORKDIR /app/client
 
-# Copy package files first for better layer caching
-COPY client/package*.json ./
+# Copy manifest + lockfile first for better layer caching
+COPY client/package.json client/pnpm-lock.yaml ./
 
-# Install deps (includes dev deps needed for Vite build)
-RUN npm ci
+# Install deps with the lockfile pinned (fails if drift detected)
+RUN pnpm install --frozen-lockfile
 
 # Copy frontend source
 COPY client/ ./
 
-# Build frontend → /app/client/dist
-RUN npm run build
+# Build → /app/client/dist
+RUN pnpm build
 
 
 # ==========================================
@@ -28,21 +31,24 @@ FROM node:22-alpine AS runtime
 # Prisma on Alpine needs openssl + libc6-compat
 RUN apk add --no-cache openssl libc6-compat
 
+# Install pnpm
+RUN npm install -g pnpm@10.30.1
+
 # Keep same folder structure as the repo so server's
 # path.join(__dirname, '../../client/dist') resolves correctly
 WORKDIR /app/server
 
-# Copy server package files (layer-cached install)
-COPY server/package*.json ./
+# Copy manifest + lockfile for cached install
+COPY server/package.json server/pnpm-lock.yaml ./
 
 # Install all deps (tsx is a devDependency but needed at runtime)
-RUN npm ci
+RUN pnpm install --frozen-lockfile
 
 # Copy server source + prisma schema + migrations
 COPY server/ ./
 
 # Generate Prisma client (uses schema.prisma)
-RUN npx prisma generate
+RUN pnpm exec prisma generate
 
 # Copy built frontend from Stage 1 to the path the server expects
 COPY --from=frontend-builder /app/client/dist /app/client/dist
@@ -59,4 +65,4 @@ ENV NODE_ENV=production
 ENV PORT=3000
 
 ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
-CMD ["npm", "run", "start"]
+CMD ["pnpm", "start"]
