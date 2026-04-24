@@ -9,8 +9,31 @@ import authRoutes from './routes/auth.routes';
 
 const app = express();
 
+// CORS — whitelist of allowed origins
+// Note: same-origin requests (frontend served by this backend) don't trigger CORS,
+// so this only matters for local dev (Vite at :5173) and any external clients.
+const allowedOrigins = [
+  'https://sigah.site',
+  'https://www.sigah.site',
+  'https://dev.sigah.site',
+  'https://www.dev.sigah.site',
+  'http://localhost:5173', // Vite dev server
+  'http://localhost:3000', // Express local
+];
+
+app.use(
+  cors({
+    origin: (origin, callback) => {
+      // Requests with no Origin header (curl, server-to-server, same-origin)
+      if (!origin) return callback(null, true);
+      if (allowedOrigins.includes(origin)) return callback(null, true);
+      return callback(new Error(`CORS: origin ${origin} not allowed`));
+    },
+    credentials: true,
+  })
+);
+
 // Global middlewares
-app.use(cors());
 app.use(helmet());
 app.use(morgan('dev'));
 app.use(express.json());
