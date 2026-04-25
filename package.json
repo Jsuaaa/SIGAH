@@ -3,16 +3,28 @@
   "version": "1.0.0",
   "private": true,
   "description": "SIGAH - Humanitarian Aid Management System for Monteria (monolith)",
+  "packageManager": "pnpm@10.30.1",
+  "engines": {
+    "node": ">=22",
+    "pnpm": ">=10.30.0 <11"
+  },
   "scripts": {
+    "preinstall": "npx -y only-allow pnpm",
     "dev": "concurrently -n server,client -c blue,green \"npm run dev:server\" \"npm run dev:client\"",
     "dev:server": "npm --prefix server run dev",
     "dev:client": "npm --prefix client run dev",
     "build": "npm --prefix client run build",
     "start": "npm --prefix server run start",
     "test": "npm --prefix server run test",
-    "install:all": "npm --prefix server install && npm --prefix client install"
+    "install:all": "npm --prefix server install && npm --prefix client install",
+    "db:up": "docker compose up -d --wait postgres",
+    "db:down": "docker compose down",
+    "db:reset": "docker compose down -v && pnpm run db:up",
+    "db:migrate": "pnpm --prefix server exec prisma migrate deploy",
+    "db:seed": "pnpm --prefix server exec prisma db seed"
   },
   "devDependencies": {
+    "@types/jest": "^30.0.0",
     "concurrently": "^9.1.2"
   }
 }
