@@ -1,0 +1,21 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: sigah-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: sigah_dev
+    ports:
+      - "5432:5432"
+    volumes:
+      - sigah-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d sigah_dev"]
+      interval: 2s
+      timeout: 3s
+      retries: 15
+
+volumes:
+  sigah-pgdata:
