@@ -6,6 +6,7 @@ import path from 'path';
 import { NODE_ENV } from './config/env';
 import { errorHandler } from './middlewares/errorHandler.middleware';
 import authRoutes from './routes/auth.routes';
+import zonesRoutes from './routes/zones.routes';
 
 const app = express();
 
@@ -45,6 +46,7 @@ app.get('/api/v1/health', (_req, res) => {
 
 // API routes
 app.use('/api/v1/auth', authRoutes);
+app.use('/api/v1/zones', zonesRoutes);
 
 // Global error handler (must be after all routes)
 app.use(errorHandler);

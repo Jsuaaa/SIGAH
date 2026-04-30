@@ -299,7 +299,7 @@ Estructura del monolito, `server/` y `client/`, dependencias, Vite proxy, Prisma
 Modelo User, migración, auth.service con bcrypt + JWT, auth y role middlewares, seed admin. **(Issues #7-#9)**
 
 ### Paso 3.1: Adaptación Auth a requerimientos finales
-Migración `add-roles-and-user-fields`: renombra enum `Role` a los 6 valores finales (`ADMIN`, `CENSUS_TAKER`, `DELIVERY_OPERATOR`, `LOGISTICS_COORDINATOR`, `CONTROL_OFFICER`, `DONATION_REGISTRAR`), añade campos a User (name, is_active, failed_login_attempts, locked_until, last_login_at, password_must_change). Validator password >= 8 caracteres. Login con lockout tras 5 intentos. Seed actualiza name. Constantes: prefijo `DEL`, alerta 85%. **(Issue #9.1)**
+Migración `add-roles-and-user-fields`: renombra enum `Role` a los 6 valores finales (`ADMIN`, `CENSUS_TAKER`, `DELIVERY_OPERATOR`, `LOGISTICS_COORDINATOR`, `CONTROL_OFFICER`, `DONATION_REGISTRAR`), añade campos a User (name, is_active, failed_login_attempts, locked_until, last_login_at, password_must_change). Validator password >= 8 caracteres. Login con lockout tras 5 intentos. Seed actualiza name. Constantes: prefijo `DEL`, alerta 85%. **(Issue #44)**
 
 ### Paso 4: Zonas y refugios
 Modelos Zone, Shelter (coordenadas NOT NULL en Shelter). CRUD. Alerta de ocupación >90% en refugios. Seeds con zonas reales de Montería. **(Issues #10-#11)**
@@ -314,28 +314,28 @@ Modelos Warehouse (coordenadas NOT NULL), ResourceType (con is_active), Inventor
 Modelos Donor (nuevo enum, contact requerido, unique compuesto), Donation, DonationDetail. Creación transaccional que actualiza inventario bodega destino. Historial por donante. **(Issues #18-#19)**
 
 ### Paso 8: Priorización configurable
-Tabla scoring_config con seed. `prioritization.service.ts` lee desde BD con caché invalidable. Endpoints GET/PUT /scoring-config. Ranking incluye breakdown. **(Issue #20-#21)**
+Tabla scoring_config con seed. `prioritization.service.ts` lee desde BD con caché invalidable. Endpoints GET/PUT /scoring-config. Ranking incluye breakdown. **(Issues #20-#21, #45)**
 
 ### Paso 9: Entregas
 Modelo Delivery (prefijo DEL, estados EN, excepciones), DeliveryDetail. Verificación de elegibilidad. Cálculo de ración mínima. Creación transaccional con Idempotency-Key. Entrega por lote. Excepción autorizada por coordinador. **(Issues #22-#24)**
 
 ### Paso 10: Planes de distribución
-Modelos DistributionPlan, DistributionPlanItem. Generación priorizada con scope (GLOBAL/ZONE/SHELTER/BATCH). Estados SCHEDULED/IN_PROGRESS/COMPLETED/CANCELLED. Ejecución que materializa entregas. **(Issue #25)**
+Modelos DistributionPlan, DistributionPlanItem. Generación priorizada con scope (GLOBAL/ZONE/SHELTER/BATCH). Estados SCHEDULED/IN_PROGRESS/COMPLETED/CANCELLED. Ejecución que materializa entregas. **(Issue #46)**
 
 ### Paso 11: Salubridad y traslados
-Modelos HealthVector (con status y vector_type literal), Relocation. PUT /status para vectores. Traslados ajustan ocupación origen/destino. **(Issues #26-#27)**
+Modelos HealthVector (con status y vector_type literal), Relocation. PUT /status para vectores. Traslados ajustan ocupación origen/destino. **(Issues #25-#26)**
 
 ### Paso 12: Auditoría inmutable
-Tabla audit_logs, middleware de auditoría que registra mutaciones (before/after, IP, user_agent), GET /audit con filtros. Permisos SQL que prohíben UPDATE/DELETE sobre audit_logs. **(Issue #28)**
+Tabla audit_logs, middleware de auditoría que registra mutaciones (before/after, IP, user_agent), GET /audit con filtros. Permisos SQL que prohíben UPDATE/DELETE sobre audit_logs. **(Issue #47)**
 
 ### Paso 13: Mapa y reportes con export
-Endpoints de mapa (incluye zonas sin entregas). Reportes completos con `?format=json|pdf|xlsx`. Dashboard con indicadores clave. Reporte de trazabilidad donante→familia. **(Issues #29-#31)**
+Endpoints de mapa (incluye zonas sin entregas). Reportes completos con `?format=json|pdf|xlsx`. Dashboard con indicadores clave. Reporte de trazabilidad donante→familia. **(Issues #27-#29)**
 
 ### Paso 14: PWA + offline + sincronización
-Frontend: Service Worker, manifest, cache shell, Dexie para cola de ops offline, UI ConnectionBadge. Backend: `POST /sync` con deduplicación por `client_op_id`. Flujos offline-first para censo y entregas. **(Issue #32)**
+Frontend: Service Worker, manifest, cache shell, Dexie para cola de ops offline, UI ConnectionBadge. Backend: `POST /sync` con deduplicación por `client_op_id`. Flujos offline-first para censo y entregas. **(Issue #48)**
 
 ### Paso 15: Tests y seeds de demo
-Tests unitarios (priorización, elegibilidad, capacidad, lockout), tests de integración (auth completo, donación→inventario→entrega→recálculo, plan de distribución end-to-end, auditoría). Seed de demo con familias, donantes, bodegas, entregas reales de Montería. **(Issue #33)**
+Tests unitarios (priorización, elegibilidad, capacidad, lockout), tests de integración (auth completo, donación→inventario→entrega→recálculo, plan de distribución end-to-end, auditoría). Seed de demo con familias, donantes, bodegas, entregas reales de Montería. **(Issue #30)**
 
 ---
 

@@ -16,6 +16,13 @@ enum Role {
   VIEWER
 }
 
+enum RiskLevel {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
 model User {
   id            Int      @id @default(autoincrement())
   email         String   @unique
@@ -25,4 +32,17 @@ model User {
   updated_at    DateTime @updatedAt
 
   @@map("users")
+}
+
+model Zone {
+  id                   Int       @id @default(autoincrement())
+  name                 String    @unique
+  risk_level           RiskLevel
+  latitude             Float
+  longitude            Float
+  estimated_population Int
+  created_at           DateTime  @default(now())
+  updated_at           DateTime  @updatedAt
+
+  @@map("zones")
 }

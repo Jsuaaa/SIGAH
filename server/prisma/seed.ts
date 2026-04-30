@@ -17,22 +17,34 @@ async function main() {
   const password = process.env.ADMIN_PASSWORD || 'Admin123!';
 
   const existing = await prisma.user.findUnique({ where: { email } });
-  if (existing) {
+  if (!existing) {
+    const password_hash = await bcrypt.hash(password, 10);
+    const admin = await prisma.user.create({
+      data: {
+        email,
+        password_hash,
+        role: 'ADMIN',
+      },
+    });
+    console.log(`Admin user created: ${admin.email}`);
+  } else {
     console.log(`Admin user already exists: ${email}`);
-    return;
   }
 
-  const password_hash = await bcrypt.hash(password, 10);
+  // Seed zones — real neighborhoods from Montería's left bank of the Sinú river
+  // affected by the 2026 flood (see PLAN.md). Idempotent via upsert.
+  const monteriaZones = [
+    { name: 'Cantaclaro',              risk_level: 'CRITICAL' as const, latitude: 8.7320, longitude: -75.8967, estimated_population: 18000 },
+    { name: 'Robinson Pitalúa',        risk_level: 'HIGH'     as const, latitude: 8.7415, longitude: -75.9012, estimated_population: 12500 },
+    { name: 'El Poblado',              risk_level: 'HIGH'     as const, latitude: 8.7589, longitude: -75.9134, estimated_population: 9800  },
+    { name: 'Mogambo',                 risk_level: 'MEDIUM'   as const, latitude: 8.7203, longitude: -75.8845, estimated_population: 6200  },
+    { name: 'Margen Izquierda Centro', risk_level: 'CRITICAL' as const, latitude: 8.7497, longitude: -75.9050, estimated_population: 22000 },
+  ];
 
-  const admin = await prisma.user.create({
-    data: {
-      email,
-      password_hash,
-      role: 'ADMIN',
-    },
-  });
-
-  console.log(`Admin user created: ${admin.email}`);
+  for (const z of monteriaZones) {
+    await prisma.zone.upsert({ where: { name: z.name }, update: {}, create: z });
+  }
+  console.log(`Seeded ${monteriaZones.length} zones.`);
 }
 
 main()
