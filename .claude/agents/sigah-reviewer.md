@@ -23,7 +23,7 @@ Antes de revisar, lee:
   - **RN-01**: `coverage_days >= 3` con CHECK a nivel BD en `deliveries`.
   - **RN-02**: verificación de cobertura vigente en `POST /deliveries`.
   - **RN-03**: `warehouse.current_weight_kg <= max_capacity_kg` como invariante.
-  - **RN-05**: descuento de inventario dentro de `prisma.$transaction()`, no en dos pasos.
+  - **RN-05**: descuento de inventario dentro del SP `sp_delivery_create` (transacción interna PL/pgSQL), no en dos pasos desde Node.
   - **RN-07**: formato de código (`FAM-YYYY-NNNNN`, `DON-YYYY-NNNNN`, `ENT-YYYY-NNNNN`, `PLN-YYYY-NNNNN`). Verifica el regex/CHECK.
   - **RN-08**: recálculo de `priority_score` en los 3 triggers (alta de entrega, cambio de composición, endpoint manual).
   - **RN-09**: `POST /families` exige `privacy_consent_accepted=true` y crea `privacy_consents` en la misma transacción.
@@ -31,13 +31,13 @@ Antes de revisar, lee:
 - ¿El RBAC es correcto? Cruzar con tabla RBAC de `FRONTEND-PLAN.md §7`. Ejemplo: `POST /deliveries/exception` debe requerir `authorize('COORDINADOR_LOGISTICA')`.
 
 ### Calidad técnica
-- **Transacciones**: mutaciones multi-tabla deben usar `prisma.$transaction()`. Un `create` seguido de `update` en código secuencial no sirve.
-- **Errores**: usar `AppError` con código de estado correcto (400 validación, 401 auth, 403 rol, 404 no existe, 409 conflicto, 423 locked, 500 inesperado).
-- **Validación**: no confiar en JSON del cliente sin pasar por `validate(rules)` con express-validator.
-- **Typing**: no `any` sin justificación en comentario. Usar los tipos generados por Prisma.
-- **Convenciones de nombres**: enums en SCREAMING_SNAKE_CASE, tablas con `@@map('snake_case')`, rutas en kebab-case.
+- **Transacciones**: mutaciones multi-tabla viven íntegras dentro de un stored procedure (`sp_*`) con `BEGIN/EXCEPTION` o `PROCEDURE … COMMIT`. El backend Node nunca abre transacciones (`withTransaction` solo se usa en tests/orquestación cross-service).
+- **Errores**: usar `AppError` con statusCode correcto. Errores que vienen de SPs deben pasar por `mapPgError` (lee SQLSTATE custom `SH4xx`). Lista: 400 validación, 401 auth, 403 rol, 404 no existe, 409 conflicto, 422 unprocessable, 423 locked, 500 inesperado.
+- **Validación**: no confiar en JSON del cliente sin pasar por `validate(rules)` con express-validator. Validaciones de **forma** (regex, longitud) en validators; reglas de **negocio** (capacidad, elegibilidad, lockout) **solo** dentro del SP.
+- **Typing**: no `any` sin justificación en comentario. Usar los tipos en `src/types/entities.ts` (no inventar otros, no importar de `@prisma/client`).
+- **Convenciones de nombres**: enums en SCREAMING_SNAKE_CASE, tablas en `snake_case`, rutas en kebab-case. SPs: `fn_<entidad>_<acción>` (functions con SETOF/return) o `sp_<entidad>_<acción>` (procedimientos transaccionales). Parámetros prefijados `p_`.
 - **No inventes dependencias**: si un PR agrega una lib que no está en `package.json` actual ni en `PLAN.md §Main Libraries`, es una bandera.
-- **Auditoría**: verificar que mutaciones pasen por el middleware de auditoría (o tengan `// audit:#28` TODO si #28 aún no está implementado).
+- **Auditoría**: verificar que cada SP de mutación llame internamente a `sp_audit_insert(...)` (issue #28). Si el SP aún no existe, debe haber un comentario `-- audit:#28` en el `.sql`.
 
 ### Seguridad
 - Input del cliente validado antes de tocar BD.
@@ -45,7 +45,7 @@ Antes de revisar, lee:
 - JWT secret desde env, nunca hardcoded.
 - No loguear password hashes ni tokens ni PII (nombres/documentos de familias en logs).
 - Ley 1581/2012: endpoints que devuelven datos personales de familias deben estar autorizados por rol.
-- SQL: usar siempre Prisma. Nada de `prisma.$executeRawUnsafe` con input del usuario.
+- SQL: nunca concatenar input de usuario en queries; usar `db.query('… $1, $2 …', [param1, param2])` o stored procedures parametrizados (lo normal).
 
 ### Frontend (si aplica)
 - Componentes mobile-first (RNF-01): probar pensando en 375px de ancho.

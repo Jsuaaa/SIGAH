@@ -1,10 +1,10 @@
 import { PORT, NODE_ENV } from './config/env';
-import prisma from './config/prisma';
+import { pool } from './config/database';
 import app from './app';
 
 async function main() {
   try {
-    await prisma.$connect();
+    await pool.query('SELECT 1');
     console.log('Database connected successfully');
 
     app.listen(PORT, () => {

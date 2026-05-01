@@ -19,9 +19,10 @@
     "install:all": "npm --prefix server install && npm --prefix client install",
     "db:up": "docker compose up -d --wait postgres",
     "db:down": "docker compose down",
-    "db:reset": "docker compose down -v && pnpm run db:up",
-    "db:migrate": "pnpm --prefix server exec prisma migrate deploy",
-    "db:seed": "pnpm --prefix server exec prisma db seed"
+    "db:reset": "docker compose down -v && pnpm run db:up && pnpm run db:migrate && pnpm run db:seed",
+    "db:migrate": "pnpm --filter server run db:migrate",
+    "db:status": "pnpm --filter server run db:status",
+    "db:seed": "pnpm --filter server run db:seed"
   },
   "devDependencies": {
     "@types/jest": "^30.0.0",
