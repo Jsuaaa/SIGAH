@@ -8,14 +8,16 @@
     "start": "tsx src/index.ts",
     "dev": "tsx watch src/index.ts",
     "test": "jest --verbose --passWithNoTests",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "db:migrate": "tsx src/db/migrate.ts apply",
+    "db:status": "tsx src/db/migrate.ts status",
+    "db:reset": "tsx src/db/migrate.ts reset",
+    "db:seed": "tsx src/db/seed.ts"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@prisma/adapter-pg": "^7.7.0",
-    "@prisma/client": "^7.7.0",
     "bcrypt": "^6.0.0",
     "cors": "^2.8.6",
     "dotenv": "^17.4.2",
@@ -23,10 +25,8 @@
     "express-validator": "^7.3.2",
     "helmet": "^8.1.0",
     "jsonwebtoken": "^9.0.3",
-    "morgan": "^1.10.1"
-  },
-  "prisma": {
-    "seed": "tsx prisma/seed.ts"
+    "morgan": "^1.10.1",
+    "pg": "^8.13.1"
   },
   "devDependencies": {
     "@types/bcrypt": "^6.0.0",
@@ -36,10 +36,10 @@
     "@types/jsonwebtoken": "^9.0.10",
     "@types/morgan": "^1.9.10",
     "@types/node": "^25.6.0",
+    "@types/pg": "^8.11.10",
     "@types/supertest": "^7.2.0",
     "jest": "^30.3.0",
     "nodemon": "^3.1.14",
-    "prisma": "^7.7.0",
     "supertest": "^7.2.2",
     "ts-jest": "^29.4.9",
     "tsx": "^4.21.0",

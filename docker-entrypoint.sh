@@ -1,8 +1,8 @@
 #!/bin/sh
 set -e
 
-echo "==> Applying Prisma migrations (prisma migrate deploy)..."
-pnpm exec prisma migrate deploy
+echo "==> Applying SQL migrations + reloading stored procedures..."
+pnpm run db:migrate
 
 echo "==> Starting SIGAH server..."
 exec "$@"

@@ -46,9 +46,7 @@ WORKDIR /app
 COPY package*.json ./
 RUN npm ci --only=production
 
-COPY prisma ./prisma
-RUN npx prisma generate
-
+COPY db ./db
 COPY src ./src
 
 EXPOSE 3000
@@ -228,7 +226,7 @@ server {
 | Subdomain | `dev.api.sigah.com` | `api.sigah.com` |
 | JWT secret | Shared dev key | Unique secure key |
 | Restart policy | `unless-stopped` | `always` |
-| Migrations | `prisma migrate dev` | `prisma migrate deploy` |
+| Migrations | `pnpm db:migrate` (custom runner) | `pnpm db:migrate` (custom runner) |
 | Seed data | Yes (demo data) | No |
 
 ---
@@ -288,18 +286,22 @@ docker compose -f docker-compose.dev.yml up -d --build
 
 ### Run Migrations
 
-```bash
-# Production — only applies pending migrations, never creates new ones
-docker compose -f docker-compose.prod.yml exec app npx prisma migrate deploy
+The custom runner (`server/src/db/migrate.ts`) applies any pending
+`db/migrations/*.sql` and **always reloads** every `db/procedures/**/*.sql`
+(idempotent `CREATE OR REPLACE`).
 
-# Development — creates and applies migrations interactively
-docker compose -f docker-compose.dev.yml exec app npx prisma migrate dev
+```bash
+# Production — apply pending migrations + reload procedures
+docker compose -f docker-compose.prod.yml exec app pnpm run db:migrate
+
+# Development — same command works in dev
+docker compose -f docker-compose.dev.yml exec app pnpm run db:migrate
 ```
 
 ### Seed Database (dev only)
 
 ```bash
-docker compose -f docker-compose.dev.yml exec app npx prisma db seed
+docker compose -f docker-compose.dev.yml exec app pnpm run db:seed
 ```
 
 ### View Logs
@@ -343,12 +345,12 @@ Developer local machine
             │
             ├── Deploy to DEV first:
             │   docker compose -f docker-compose.dev.yml up -d --build
-            │   docker compose -f docker-compose.dev.yml exec app npx prisma migrate dev
+            │   docker compose -f docker-compose.dev.yml exec app pnpm run db:migrate
             │   → Test on dev.api.sigah.com
             │
             └── If DEV passes, deploy to PROD:
                 docker compose -f docker-compose.prod.yml up -d --build
-                docker compose -f docker-compose.prod.yml exec app npx prisma migrate deploy
+                docker compose -f docker-compose.prod.yml exec app pnpm run db:migrate
                 → Verify on api.sigah.com
 ```
 

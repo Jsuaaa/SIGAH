@@ -1,8 +1,32 @@
-# SIGAH — Project Issues (33)
+# SIGAH — Project Issues (34)
 
 > Issues derivados de PLAN.md y FRONTEND-PLAN.md, alineados al PDF de requerimientos finales (Iteración 3, Abril 2026 — 44 RF, 10 RN, 9 RNF, 31 HU). Cada issue incluye título, descripción, criterios de aceptación, dependencias y etiquetas sugeridas.
 >
-> **Estado**: los issues **#1–#9 están resueltos** (scaffolding + infraestructura base + auth v1). El issue **#9.1** adapta el módulo de auth al enum de roles y validaciones finales. Del #10 en adelante incorpora los cambios del PDF.
+> **Estado**: los issues **#1–#9 están resueltos** (scaffolding + infraestructura base + auth v1). El issue **#9.1** adapta el módulo de auth al enum de roles y validaciones finales. **El issue #9.2 elimina Prisma del stack y adopta arquitectura MVC + Stored Procedures (PL/pgSQL); a partir de él, todos los issues siguen el patrón estándar descrito abajo.**
+
+---
+
+## Patrón estándar de implementación (post-#9.2)
+
+Toda nueva entidad o feature se entrega siguiendo este patrón. Reemplaza al modelo Prisma anterior:
+
+1. **Migración SQL** (`server/db/migrations/NNN_<entidad>.sql`): DDL puro — tabla, FKs, CHECK constraints, índices, enums (si aplica). Numerada y registrada en `_migrations`.
+2. **Stored procedures** (`server/db/procedures/<módulo>/*.sql`): un archivo por SP/FN, idempotente (`CREATE OR REPLACE`). Convenciones:
+   - `fn_<entidad>_<acción>` para FUNCTIONS que devuelven datos.
+   - `sp_<entidad>_<acción>` para PROCEDURES o FUNCTIONS que orquestan transacciones complejas.
+   - Errores con `RAISE EXCEPTION USING ERRCODE = 'SH4XX'` (`SH401/403/404/409/422/423`).
+   - Cada SP de mutación llama a `sp_audit_insert(...)` antes de retornar.
+   - Las transacciones que cruzan tablas viven enteras dentro del SP.
+3. **Tipos TS** (`server/src/types/entities.ts`): interface espejo de la tabla + cualquier enum nuevo.
+4. **Model** (`server/src/models/<entidad>.model.ts`): wrapper tipado sobre `db.query('SELECT * FROM fn_<x>($1, $2)', […])`. Sin lógica de negocio.
+5. **Service** (`server/src/services/<entidad>.service.ts`): orquesta varios models, JWT, bcrypt; **no replica reglas que ya estén en SP**.
+6. **Controller + Routes + Validators**: igual que hoy. Validators solo para **forma** (regex, longitud); reglas de negocio quedan en SP.
+7. **View** (`server/src/views/<entidad>.view.ts`): serializa la fila a la respuesta pública (oculta `password_hash`, etc.).
+8. **AC genéricos que aplican a todo issue**:
+   - SPs idempotentes en `db/procedures/<módulo>/`.
+   - Cada AC funcional cubierto por SP correspondiente, no por código TS replicado.
+   - Modelo expone solo métodos tipados; ningún controller/service llama `db.query` directo.
+   - Tests de integración invocan los SPs reales contra BD de test.
 
 ---
 
@@ -124,13 +148,70 @@ Ajustar el módulo de auth ya entregado para cumplir con el PDF final. NO requie
 
 ---
 
-## Paso 4: Zonas y refugios
+## Paso 3.2: Eliminación de Prisma + arquitectura MVC + Stored Procedures
 
-### Issue #10 — Modelo Zone y CRUD + seed de Montería
-**Labels**: `feature`, `geo`, `step-4`
+### Issue #9.2 — Migración a `pg` + arquitectura MVC + Stored Procedures 🆕
+**Labels**: `infrastructure`, `database`, `priority: critical`, `step-3.2`
 **Depends on**: #9.1
 
-Modelo `Zone` (name, risk_level LOW/MEDIUM/HIGH/CRITICAL, latitude, longitude, estimated_population Int). CRUD completo. Endpoints anidados `GET /:id/families`, `GET /:id/shelters`, `GET /:id/warehouses`. Seed con zonas reales de la margen izquierda de Montería.
+Cambio fundacional: el profesor pide que el proyecto **no use ORM** y que toda la lógica de negocio viva en **stored procedures de PostgreSQL**. Se elimina Prisma del stack y se adopta `pg` (node-postgres) puro como única dependencia de acceso a datos. El backend pasa a una arquitectura **MVC + Service layer** donde los modelos son wrappers tipados sobre `fn_*`/`sp_*`, los servicios orquestan, los controllers transportan HTTP y las vistas serializan respuestas. Las migraciones Prisma vigentes se descartan; arrancamos `db/migrations/` desde cero con `.sql` planos. Solo `auth` y `zones` están implementados al momento del cambio, así que el alcance del issue se limita a esos dos módulos; #10 en adelante se construye directamente sobre el nuevo patrón.
+
+**Cambios técnicos**:
+
+1. **Dependencias** (`server/package.json`):
+   - Quitar: `@prisma/client`, `@prisma/adapter-pg`, `prisma` (devDep), bloque `"prisma": { "seed": "..." }`.
+   - Añadir: `pg@^8`, `@types/pg` (devDep).
+   - Scripts `db:migrate`, `db:status`, `db:seed`, `db:reset` apuntando a `tsx src/db/migrate.ts` / `src/db/seed.ts`.
+2. **Estructura nueva**:
+   - `server/db/migrations/` — `.sql` numerados (`001_extensions.sql`, `002_enum_types.sql`, `003_users.sql`, `004_zones.sql`).
+   - `server/db/procedures/{_common,users,zones}/*.sql` — `CREATE OR REPLACE` idempotentes.
+   - `server/db/seeds/{001_admin_user.sql,002_zones_monteria.sql}`.
+   - `server/db/README.md` con convenciones de naming, errcodes `SH4xx`, y guía para añadir SPs.
+   - `server/src/db/{client.ts,migrate.ts,seed.ts}` — runner casero.
+   - `server/src/config/database.ts` — `pg.Pool` singleton (reemplaza `config/prisma.ts`).
+   - `server/src/{models,views}/` — nuevas carpetas.
+   - `server/src/types/{entities.ts,pg-errors.ts}` — interfaces TS + mapping SQLSTATE → AppError.
+3. **Stored procedures iniciales**:
+   - `_common/`: `fn_next_code(p_prefix)`, `sp_audit_insert(...)` (placeholder; se completa en #28).
+   - `users/`: `fn_users_find_by_email`, `fn_users_find_by_id`, `fn_users_create`, `fn_users_list`, `sp_auth_login` (lockout + last_login_at), `sp_users_change_password`, `sp_users_reset_password`, `sp_users_set_active`.
+   - `zones/`: `fn_zones_create`, `fn_zones_list` (con paginación + filtros + total), `fn_zones_find_by_id`, `fn_zones_update`, `sp_zones_delete`, `fn_zones_families`, `fn_zones_shelters`, `fn_zones_warehouses`.
+4. **Migration runner** (`src/db/migrate.ts`):
+   - Crea tabla `_migrations(filename TEXT PRIMARY KEY, applied_at TIMESTAMPTZ DEFAULT now())`.
+   - Lee `db/migrations/*.sql` ordenados, aplica los pendientes en transacción individual.
+   - Después, recarga **todos** los `db/procedures/**/*.sql` (recursivo) sin tracking — son idempotentes.
+   - CLI: `apply` | `status` | `reset` (drop schema public + recrea).
+5. **Refactor de código**:
+   - `auth.service.ts`: usa `UserModel`; bcrypt sigue en Node; lockout/contadores delegados a `sp_auth_login`.
+   - `zones.service.ts`: usa `ZoneModel`; `prisma.$transaction([find, count])` → `fn_zones_list` que retorna fila con `data + total`.
+   - `controllers/zones.controller.ts`, `middlewares/role.middleware.ts`, `types/express.d.ts`: `import { Role } from '../types/entities'` (sin `@prisma/client`).
+   - `tests/setup.ts`: cleanup con `TRUNCATE users, zones RESTART IDENTITY CASCADE`, salvo el admin seedeado.
+   - `index.ts`: `pool.query('SELECT 1')` como healthcheck en lugar de `prisma.$connect()`.
+6. **Errores tipados**: `src/types/pg-errors.ts` exporta `mapPgError(err)` que lee `err.code` y, si es `SH4xx`, lanza `AppError` con statusCode correcto.
+7. **Borrar**: `server/prisma/` (todo el directorio), `server/src/config/prisma.ts`.
+8. **Documentación**: actualizar `ONBOARD.md` con `pnpm db:reset` como paso de setup.
+
+**Acceptance Criteria**:
+- [ ] `grep -r "prisma\|@prisma" server/src server/tests server/package.json` no devuelve nada.
+- [ ] `pnpm install && pnpm db:reset` deja la BD con `users` (1 admin), `zones` (5 Montería) y todos los SPs creados.
+- [ ] `SELECT count(*) FROM pg_proc WHERE proname LIKE 'fn_%' OR proname LIKE 'sp_%'` retorna ≥ 16 (los listados arriba).
+- [ ] `pnpm --filter server test` pasa la suite existente de zones (52 tests) sin tocar los asserts.
+- [ ] `pnpm --filter server typecheck && pnpm --filter server build` sin errores.
+- [ ] Login con admin: éxito → `last_login_at` actualizado, `failed_login_attempts = 0`.
+- [ ] 5 logins fallidos consecutivos: respuesta 423, `locked_until ≈ now() + 15min`. Lógica enforzada por `sp_auth_login`.
+- [ ] Cada modelo tiene su `*.model.ts` con métodos tipados; ningún controller/service llama `db.query` directamente.
+- [ ] Errores PostgreSQL `SH4xx` se mapean a HTTP 401/403/404/409/422/423 vía `mapPgError`.
+- [ ] Tests nuevos: `tests/integration/auth.test.ts` cubre login OK, lockout (5 fallos → 423), usuario desactivado (403), reset de contraseña.
+- [ ] `db/README.md` documenta convenciones de naming y errcodes.
+
+---
+
+## Paso 4: Zonas y refugios
+
+### Issue #10 — Tabla Zone + CRUD via SPs + seed de Montería
+**Labels**: `feature`, `geo`, `step-4`
+**Depends on**: #9.2
+
+Tabla `zones` (name, risk_level LOW/MEDIUM/HIGH/CRITICAL, latitude, longitude, estimated_population Int) — DDL en `db/migrations/004_zones.sql` (ya creada en #9.2). Implementar `ZoneModel` que envuelve los SPs de `db/procedures/zones/`: `fn_zones_create`, `fn_zones_list` (filtros + paginación + total), `fn_zones_find_by_id`, `fn_zones_update`, `sp_zones_delete`, `fn_zones_families`, `fn_zones_shelters`, `fn_zones_warehouses`. CRUD completo. Endpoints anidados. Seed con zonas reales de la margen izquierda de Montería en `db/seeds/002_zones_monteria.sql`.
 
 **Acceptance Criteria**:
 - [ ] Zone model con coordenadas NOT NULL (RN-10).
@@ -141,11 +222,11 @@ Modelo `Zone` (name, risk_level LOW/MEDIUM/HIGH/CRITICAL, latitude, longitude, e
 
 ---
 
-### Issue #11 — Modelo Shelter y CRUD + alerta 90%
+### Issue #11 — Tabla Shelter + SPs + alerta 90%
 **Labels**: `feature`, `geo`, `step-4`
 **Depends on**: #10
 
-Modelo `Shelter` (name, address, zone_id FK, max_capacity Int, current_occupancy Int default 0, type, latitude NOT NULL, longitude NOT NULL). CRUD + `PUT /:id/occupancy`. Alerta visible cuando ocupación > 90% (HU-10 CA2). Rechaza refugios sin coordenadas (HU-10 CA5).
+Migración `db/migrations/NNN_shelters.sql` con tabla `shelters` (name, address, zone_id FK, max_capacity Int, current_occupancy Int default 0, type, latitude NOT NULL, longitude NOT NULL — RN-10). SPs en `db/procedures/shelters/`: `fn_shelters_create`, `fn_shelters_list` (incluye flag `is_over_capacity` si >90%), `fn_shelters_find_by_id`, `fn_shelters_update`, `sp_shelters_delete`, `sp_shelters_set_occupancy` (valida `<= max_capacity` y lanza `SH422` si excede). `ShelterModel` + service + controller + routes + view. PUT `/:id/occupancy` invoca `sp_shelters_set_occupancy`.
 
 **Acceptance Criteria**:
 - [ ] Shelter con coordenadas obligatorias.
@@ -158,15 +239,20 @@ Modelo `Shelter` (name, address, zone_id FK, max_capacity Int, current_occupancy
 
 ## Paso 5: Familias, personas y consentimiento privacidad
 
-### Issue #12 — Modelo Family + PrivacyConsent + CRUD con código secuencial
+### Issue #12 — Tablas Family + PrivacyConsent + SPs con código secuencial
 **Labels**: `feature`, `census`, `priority: high`, `step-5`
 **Depends on**: #10
 
-Modelo `Family` (family_code único, head_document, zone_id FK, shelter_id FK opcional, num_members, num_children_under_5, num_adults_over_65, num_pregnant, num_disabled, priority_score Float default 0, **priority_score_breakdown JSON**, status enum **ACTIVO/EN_REFUGIO/EVACUADO**, latitude opcional, longitude opcional, reference_address opcional).
+Migración con dos tablas:
+- `families` (family_code único, head_document, zone_id FK, shelter_id FK opcional, num_members, num_children_under_5, num_adults_over_65, num_pregnant, num_disabled, priority_score Float default 0, **priority_score_breakdown JSONB**, status enum **ACTIVO/EN_REFUGIO/EVACUADO**, latitude opcional, longitude opcional, reference_address opcional).
+- `privacy_consents` (family_id FK, accepted_at, accepted_by_user_id FK, law_version "Ley 1581/2012", ip_address).
+- Índices `pg_trgm` sobre `family_code`, `head_document`, `reference_address` (RNF-04).
 
-Modelo `PrivacyConsent` (family_id FK, accepted_at, accepted_by_user_id FK, law_version "Ley 1581/2012", ip_address).
-
-CRUD con código secuencial FAM-2026-NNNNN. `GET /search?q=X` unifica búsqueda por `family_code`, `head_document`, `reference_address` con respuesta <2s. `GET /:id/deliveries`, `GET /:id/eligibility`.
+SPs en `db/procedures/families/`:
+- `sp_families_create_with_consent(p_family JSONB, p_consent JSONB, p_user_id, p_ip, p_user_agent)` — atómico: valida `privacy_consent_accepted=true` (RN-09 → `SH422`), genera `FAM-2026-NNNNN` con `fn_next_code('FAM')`, inserta `families` + `privacy_consents`, audita.
+- `fn_families_search(p_query TEXT, p_limit, p_offset)` — búsqueda unificada con trigram, retorna fila con `data + total`.
+- `fn_families_get_eligibility(p_family_id)` — delega en `fn_delivery_check_eligibility` cuando exista (#23).
+- `fn_families_list`, `fn_families_find_by_id`, `sp_families_update`, `sp_families_delete`, `fn_families_deliveries`.
 
 **Acceptance Criteria**:
 - [ ] `POST /families` exige `privacy_consent_accepted=true`; si no, 400 (RN-09).
@@ -179,11 +265,11 @@ CRUD con código secuencial FAM-2026-NNNNN. `GET /search?q=X` unifica búsqueda 
 
 ---
 
-### Issue #13 — Modelo Person y CRUD
+### Issue #13 — Tabla Person + SPs
 **Labels**: `feature`, `census`, `step-5`
 **Depends on**: #12
 
-Modelo `Person` (family_id FK, name, document único, birth_date, gender, relationship enum **ESPOSO_A/HIJO_A/PADRE_MADRE/HERMANO_A/OTRO**, special_conditions String[], requires_medication Boolean). CRUD linked to family. `GET /search?document=X`.
+Migración con tabla `persons` (family_id FK, name, document único, birth_date, gender, relationship enum **ESPOSO_A/HIJO_A/PADRE_MADRE/HERMANO_A/OTRO**, special_conditions TEXT[], requires_medication Boolean). SPs en `db/procedures/persons/`: `fn_persons_list_by_family`, `fn_persons_find_by_document`, `sp_persons_create`, `sp_persons_update`, `sp_persons_delete` (bloqueado si es el último miembro de la familia → `SH409`). `PersonModel` + service + controller + routes + view. Búsqueda por documento retorna persona + datos de familia (JOIN dentro del SP).
 
 **Acceptance Criteria**:
 - [ ] Person con relación a Family.
@@ -210,11 +296,11 @@ Al agregar/remover/editar personas, recalcular: num_members, num_children_under_
 
 ## Paso 6: Bodegas, recursos e inventario
 
-### Issue #15 — Modelo Warehouse y CRUD con alerta 85% y bloqueo 100%
+### Issue #15 — Tabla Warehouse + SPs con alerta 85% y bloqueo 100%
 **Labels**: `feature`, `inventory`, `geo`, `step-6`
 **Depends on**: #10
 
-Modelo `Warehouse` (name, address, latitude NOT NULL, longitude NOT NULL, max_capacity_kg, current_weight_kg default 0, status ACTIVE/INACTIVE, zone_id FK). CRUD con validación de capacidad.
+Migración con tabla `warehouses` (name, address, latitude NOT NULL, longitude NOT NULL — RN-10, max_capacity_kg, current_weight_kg default 0, status ACTIVE/INACTIVE, zone_id FK; CHECK `current_weight_kg <= max_capacity_kg`). SPs en `db/procedures/warehouses/`: `fn_warehouses_create`, `fn_warehouses_list` (incluye flag `is_over_85_percent`), `fn_warehouses_find_by_id`, `fn_warehouses_update`, `sp_warehouses_delete`, `fn_warehouses_inventory`, `fn_warehouses_nearest(p_lat, p_lng)` (Haversine en SQL, sólo ACTIVE con stock). Cualquier mutación que haga `current_weight_kg > max_capacity_kg` lanza `SH422` (RN-03).
 
 **Acceptance Criteria**:
 - [ ] Coordenadas obligatorias (RN-10).
@@ -229,11 +315,15 @@ Modelo `Warehouse` (name, address, latitude NOT NULL, longitude NOT NULL, max_ca
 **Labels**: `feature`, `inventory`, `step-6`
 **Depends on**: #15
 
-Modelo `ResourceType` (name, category FOOD/BLANKET/MATTRESS/HYGIENE/MEDICATION, unit_of_measure, unit_weight_kg, **is_active Boolean default true**; unique (name, category)).
-Modelo `Inventory` (warehouse_id FK, resource_type_id FK, available_quantity, total_weight_kg, batch, expiration_date; unique (warehouse_id, resource_type_id, batch)).
-Modelo `InventoryAdjustment` (inventory_id FK, delta Int, **reason enum MERMA/DANO/DEVOLUCION/CORRECCION**, reason_note, user_id FK, created_at).
+Migraciones para tres tablas:
+- `resource_types` (name, category FOOD/BLANKET/MATTRESS/HYGIENE/MEDICATION, unit_of_measure, unit_weight_kg, **is_active Boolean default true**; unique (name, category)).
+- `inventory` (warehouse_id FK, resource_type_id FK, available_quantity, total_weight_kg, batch, expiration_date; unique (warehouse_id, resource_type_id, batch)).
+- `inventory_adjustments` (inventory_id FK, delta Int, **reason enum MERMA/DANO/DEVOLUCION/CORRECCION**, reason_note, user_id FK, created_at).
 
-CRUD de ResourceTypes. Endpoints `/inventory?warehouse_id=X`, `/inventory/summary`, `PUT /:id/adjustment`.
+SPs en `db/procedures/{resource_types,inventory}/`:
+- `fn_resource_types_*` (CRUD; soft-delete con `is_active=false`).
+- `fn_inventory_list(p_warehouse_id)`, `fn_inventory_summary` (agrupado por categoría/bodega).
+- `sp_inventory_adjust(p_inventory_id, p_delta, p_reason, p_reason_note, p_user_id, p_ip, p_user_agent)` — atómico: valida `reason` enum y `available_quantity + delta >= 0` (`SH422`), actualiza `inventory`, ajusta `warehouses.current_weight_kg` (RN-03), inserta en `inventory_adjustments`, audita. Solo ADMIN/COORDINADOR_LOGISTICA (validado en controller).
 
 **Acceptance Criteria**:
 - [ ] Unique (name, category) en ResourceType (HU-14 CA2).
@@ -253,7 +343,7 @@ CRUD de ResourceTypes. Endpoints `/inventory?warehouse_id=X`, `/inventory/summar
 **Labels**: `feature`, `inventory`, `geo`, `step-6`
 **Depends on**: #16
 
-Modelo `AlertThreshold` (resource_type_id FK, min_quantity Int, updated_by FK, updated_at). Endpoints `GET /alert-thresholds`, `PUT /alert-thresholds`.
+Migración con tabla `alert_thresholds` (resource_type_id FK, min_quantity Int, updated_by FK, updated_at). SPs: `fn_alert_thresholds_list`, `sp_alert_thresholds_set`. Endpoints `GET /alert-thresholds`, `PUT /alert-thresholds`.
 
 `GET /inventory/alerts` — retorna stock bajo (por umbral configurable), vencimientos próximos (7 días), vencidos, bodegas >85%.
 
@@ -269,11 +359,11 @@ Modelo `AlertThreshold` (resource_type_id FK, min_quantity Int, updated_by FK, u
 
 ## Paso 7: Donantes y donaciones
 
-### Issue #18 — Modelo Donor con nuevo enum y contact requerido
+### Issue #18 — Tabla Donor con nuevo enum y contact requerido
 **Labels**: `feature`, `donations`, `step-7`
-**Depends on**: #9.1
+**Depends on**: #9.2
 
-Modelo `Donor` (name, **type enum PERSONA_NATURAL/EMPRESA/ALCALDIA/GOBERNACION/ORGANIZACION**, contact String (requerido — teléfono o correo), tax_id opcional; **unique compuesto (name, type)** — HU-18 CA3).
+Migración con tabla `donors` (name, **type enum PERSONA_NATURAL/EMPRESA/ALCALDIA/GOBERNACION/ORGANIZACION**, contact String (requerido — teléfono o correo), tax_id opcional; **unique compuesto (name, type)** — HU-18 CA3). SPs en `db/procedures/donors/`: `fn_donors_create`, `fn_donors_list` (filtros), `fn_donors_find_by_id`, `sp_donors_update`, `sp_donors_soft_delete` (marca inactivo si tiene donaciones).
 
 **Acceptance Criteria**:
 - [ ] 5 valores del enum coinciden con HU-18 CA1.
@@ -288,10 +378,11 @@ Modelo `Donor` (name, **type enum PERSONA_NATURAL/EMPRESA/ALCALDIA/GOBERNACION/O
 **Labels**: `feature`, `donations`, `inventory`, `priority: high`, `step-7`
 **Depends on**: #16, #18
 
-Modelo `Donation` (donation_code DON-2026-NNNNN, donor_id FK, destination_warehouse_id FK, donation_type IN_KIND/MONETARY/MIXED, monetary_amount opcional, date).
-Modelo `DonationDetail` (donation_id FK, resource_type_id FK, quantity, weight_kg).
+Migración con dos tablas:
+- `donations` (donation_code DON-2026-NNNNN, donor_id FK, destination_warehouse_id FK, donation_type IN_KIND/MONETARY/MIXED, monetary_amount opcional, date).
+- `donation_details` (donation_id FK, resource_type_id FK, quantity, weight_kg).
 
-`POST /donations` con transacción que: crea Donation + Details, actualiza Inventory (quantity, weight), actualiza Warehouse current_weight_kg. Valida capacidad destino. Rollback si excede.
+SP `sp_donations_create(p_donation JSONB, p_details JSONB[], p_user_id, p_ip, p_user_agent)` — transacción interna PL/pgSQL que: genera código DON con `fn_next_code('DON')`, crea `donations` + `donation_details`, actualiza `inventory` y `warehouses.current_weight_kg`, valida `<= max_capacity_kg` (rollback con `SH422` si excede — RN-03), audita. Para `MONETARY` no toca inventario. SPs adicionales: `fn_donations_list` (filtros), `fn_donations_find_by_id`, `fn_donations_by_donor` (HU-20).
 
 **Acceptance Criteria**:
 - [ ] Código DON secuencial.
@@ -309,14 +400,15 @@ Modelo `DonationDetail` (donation_id FK, resource_type_id FK, quantity, weight_k
 **Labels**: `feature`, `algorithm`, `priority: high`, `step-8`
 **Depends on**: #12
 
-Modelo `ScoringConfig` (key PK, value Float, updated_by FK, updated_at). Seed con pesos iniciales (W_MEMBERS=2, W_CHILDREN_5=5, W_ADULTS_65=4, W_PREGNANT=5, W_DISABLED=4, W_ZONE_RISK=3, W_DAYS_NO_AID=1.5, W_DELIVERIES=2, MAX_DAYS=30).
+Migración con tabla `scoring_config` (key PK, value Float, updated_by FK, updated_at). Seed (`db/seeds/NNN_scoring_config.sql`) con pesos iniciales (W_MEMBERS=2, W_CHILDREN_5=5, W_ADULTS_65=4, W_PREGNANT=5, W_DISABLED=4, W_ZONE_RISK=3, W_DAYS_NO_AID=1.5, W_DELIVERIES=2, MAX_DAYS=30).
 
-`prioritization.service.ts`:
-- `calculateScore(family)` con breakdown por factor.
-- Lee pesos de `scoring_config` con **caché en memoria invalidable**.
-- `invalidateCache()` al actualizar config.
+SPs en `db/procedures/{scoring_config,prioritization}/`:
+- `fn_priority_score(p_family_id) RETURNS jsonb` — lee pesos de `scoring_config`, calcula puntaje, retorna `{ total, breakdown: { factor: valor } }`.
+- `sp_scoring_config_set(p_key, p_value, p_user_id, …)` — actualiza un peso, audita, ejecuta `pg_notify('scoring_config_changed', '…')` para que el backend invalide la caché en memoria.
 
-Endpoints `GET /scoring-config` (autenticado) y `PUT /scoring-config` (ADMIN / COORDINADOR_LOGISTICA).
+`prioritization.service.ts` (orquestación + caché):
+- Listener `pg.Client` suscrito a `LISTEN scoring_config_changed` que invalida la caché.
+- Endpoint `PUT /scoring-config` invoca `sp_scoring_config_set`. `GET /scoring-config` lee desde caché o BD.
 
 **Acceptance Criteria**:
 - [ ] Tabla seedeada con los pesos iniciales.
@@ -350,9 +442,11 @@ Endpoints `GET /scoring-config` (autenticado) y `PUT /scoring-config` (ADMIN / C
 **Labels**: `database`, `deliveries`, `step-9`
 **Depends on**: #12, #15
 
-Modelo `Delivery` (delivery_code **ENT-2026-NNNNN**, family_id FK, source_warehouse_id FK, plan_item_id FK opcional, delivery_date, delivered_by FK User, received_by_document, coverage_days Int CHECK >= 3, **status enum PROGRAMADA/EN_CURSO/ENTREGADA**, delivery_latitude, delivery_longitude, **exception_reason opcional**, **exception_authorized_by FK User opcional**, client_op_id String? unique).
+Migración con dos tablas:
+- `deliveries` (delivery_code **ENT-2026-NNNNN**, family_id FK, source_warehouse_id FK, plan_item_id FK opcional, delivery_date, delivered_by FK User, received_by_document, coverage_days Int CHECK >= 3, **status enum PROGRAMADA/EN_CURSO/ENTREGADA**, delivery_latitude, delivery_longitude, **exception_reason opcional**, **exception_authorized_by FK User opcional**, client_op_id TEXT UNIQUE).
+- `delivery_details` (delivery_id FK, resource_type_id FK, quantity, weight_kg).
 
-Modelo `DeliveryDetail` (delivery_id FK, resource_type_id FK, quantity, weight_kg).
+SPs base (lógica completa en #23/#24): firmas en `db/procedures/deliveries/`.
 
 **Acceptance Criteria**:
 - [ ] Delivery con todas las relaciones y constraints.
@@ -386,7 +480,7 @@ Servicio de delivery:
 **Labels**: `feature`, `deliveries`, `priority: high`, `step-9`
 **Depends on**: #23
 
-`POST /deliveries` (individual) dentro de `prisma.$transaction()`:
+`POST /deliveries` (individual) delegado al SP `sp_delivery_create` (transacción interna PL/pgSQL):
 1. Verifica elegibilidad.
 2. Verifica stock suficiente en bodega.
 3. Crea Delivery + DeliveryDetails.
@@ -443,7 +537,7 @@ Endpoints:
 **Labels**: `feature`, `health`, `geo`, `step-11`
 **Depends on**: #10
 
-Modelo `HealthVector` (**vector_type enum AGUA_CONTAMINADA/INSECTOS/ROEDORES/OTRO**, risk_level LOW/MEDIUM/HIGH/CRITICAL, **status enum ACTIVO/EN_ATENCION/RESUELTO**, actions_taken, latitude, longitude, zone_id FK opcional, shelter_id FK opcional, reported_date, reported_by FK User). CRUD + `PUT /:id/status`.
+Migración con tabla `health_vectors` (**vector_type enum AGUA_CONTAMINADA/INSECTOS/ROEDORES/OTRO**, risk_level LOW/MEDIUM/HIGH/CRITICAL, **status enum ACTIVO/EN_ATENCION/RESUELTO**, actions_taken, latitude, longitude, zone_id FK opcional, shelter_id FK opcional, reported_date, reported_by FK User). SPs en `db/procedures/health_vectors/`: `fn_health_vectors_create`, `fn_health_vectors_list` (filtros zone/shelter/risk_level/vector_type/status), `fn_health_vectors_find_by_id`, `sp_health_vectors_update`, `sp_health_vector_set_status` (registra cambio + audit). CRUD + `PUT /:id/status`.
 
 **Acceptance Criteria**:
 - [ ] Enum vector_type literal del PDF.
@@ -459,13 +553,14 @@ Modelo `HealthVector` (**vector_type enum AGUA_CONTAMINADA/INSECTOS/ROEDORES/OTR
 **Labels**: `feature`, `relocations`, `step-11`
 **Depends on**: #11, #12
 
-Modelo `Relocation` (family_id FK, origin_shelter_id FK, destination_shelter_id FK, type TEMPORARY/PERMANENT, relocation_date, reason, authorized_by FK User).
+Migración con tabla `relocations` (family_id FK, origin_shelter_id FK, destination_shelter_id FK, type TEMPORARY/PERMANENT, relocation_date, reason, authorized_by FK User).
 
-`POST /relocations` en transacción:
-1. Valida destino tiene capacidad (current_occupancy + members <= max_capacity).
-2. Crea Relocation.
-3. Actualiza family.shelter_id.
-4. Decrementa origen, incrementa destino.
+SP `sp_relocation_apply(p_relocation JSONB, p_user_id, p_ip, p_user_agent)` — transacción interna PL/pgSQL que:
+1. Valida que el destino tenga capacidad (`current_occupancy + family.num_members <= max_capacity`); si no, `SH409`.
+2. Inserta `relocations`.
+3. Actualiza `families.shelter_id`.
+4. Decrementa ocupación del refugio origen, incrementa la del destino.
+5. Audita.
 
 **Acceptance Criteria**:
 - [ ] Transacción atómica.
@@ -481,13 +576,15 @@ Modelo `Relocation` (family_id FK, origin_shelter_id FK, destination_shelter_id 
 **Labels**: `feature`, `audit`, `priority: high`, `step-12`
 **Depends on**: #9.1
 
-Modelo `AuditLog` (id, action, module, entity, entity_id, user_id FK, before JSON, after JSON, ip_address, user_agent, created_at).
+Migración con tabla `audit_logs` (id, action, module, entity, entity_id, user_id FK, before JSONB, after JSONB, ip_address INET, user_agent TEXT, created_at). En la misma migración: `REVOKE UPDATE, DELETE ON audit_logs FROM <app_role>` (CV-11, RNF-09).
 
-**Middleware `audit.middleware.ts`**: se ejecuta al final de cada controlador de mutación exitoso. Captura el payload, el resultado y los datos previos (si aplica), y hace INSERT en `audit_logs`. Registra IP (`req.ip`) y user-agent.
+SPs en `db/procedures/_common/` (afectan a TODOS los SPs de mutación del proyecto):
+- `sp_audit_insert(p_action, p_module, p_entity, p_entity_id, p_user_id, p_before JSONB, p_after JSONB, p_ip INET, p_user_agent TEXT)` — inserta una fila en `audit_logs`. **Es invocada desde dentro de cada SP de mutación** (no es middleware: la auditoría es parte de la transacción de negocio, garantizando que ninguna mutación quede sin registrar incluso si la transacción se completa parcialmente). Cada SP de mutación previo debe haberse refactorizado para llamarla.
 
-**Endpoint `GET /audit`** solo FUNCIONARIO_CONTROL/ADMIN. Filtros: user_id, module, action, date range (HU-31 CA3).
+SPs en `db/procedures/audit/`:
+- `fn_audit_list(p_filters JSONB, p_limit, p_offset)` — filtros por user_id, module, action, date range (HU-31 CA3). Sólo expuesto a FUNCIONARIO_CONTROL/ADMIN vía `role.middleware`.
 
-**Permisos SQL**: revocar UPDATE y DELETE sobre `audit_logs` al rol de BD usado por la app (RNF-09, CV-11). Documentado en migración.
+**Sin endpoints de mutación**. Sin middleware Node — toda la responsabilidad de auditar está en los SPs.
 
 **Acceptance Criteria**:
 - [ ] Tabla audit_logs sin SET/DELETE permitido (usar migration para revocar).
@@ -613,7 +710,7 @@ Endpoints:
 - `audit.test.ts` — mutación crea audit entry; intento UPDATE manual falla.
 - `sync.test.ts` — batch de ops con Idempotency-Key no duplica.
 
-**Seed de demo** (`server/prisma/seed.ts` ampliado):
+**Seed de demo** (`server/db/seeds/*.sql` ampliados):
 - Admin + usuarios por cada rol.
 - Zonas y refugios reales de Montería.
 - Bodegas sumando 20.000 kg.
@@ -638,35 +735,35 @@ Endpoints:
 ```
 #1 → #2 → #3 ┬→ #4 → #5 → #6
              │
-             └→ #7 → #8 → #9 → #9.1
-                              │
-                              ├→ #10 → #11
-                              │    │
-                              │    └→ #12 → #13 → #14
-                              │         │
-                              │         └→ #20 → #21
-                              │              │
-                              │              ├→ #22 → #23 → #24 → #25
-                              │              │
-                              ├→ #15 → #16 → #17
-                              │    │    │
-                              │    │    └→ #19
-                              │    │
-                              │    └→ #18
-                              │
-                              ├→ #26 (depends on #10)
-                              │
-                              ├→ #27 (depends on #11, #12)
-                              │
-                              ├→ #28 (AuditLog middleware — cross-cutting)
-                              │
-                              ├→ #29 (#11, #15, #12, #26)
-                              │
-                              ├→ #30 → #31
-                              │
-                              ├→ #32 (#12, #22, #24)
-                              │
-                              └→ #33 (tests — al final)
+             └→ #7 → #8 → #9 → #9.1 → #9.2  ← migración a pg + MVC + SPs (cross-cutting fundacional)
+                                       │
+                                       ├→ #10 → #11
+                                       │    │
+                                       │    └→ #12 → #13 → #14
+                                       │         │
+                                       │         └→ #20 → #21
+                                       │              │
+                                       │              ├→ #22 → #23 → #24 → #25
+                                       │              │
+                                       ├→ #15 → #16 → #17
+                                       │    │    │
+                                       │    │    └→ #19
+                                       │    │
+                                       │    └→ #18
+                                       │
+                                       ├→ #26 (depends on #10)
+                                       │
+                                       ├→ #27 (depends on #11, #12)
+                                       │
+                                       ├→ #28 (sp_audit_insert + REVOKE — cross-cutting; cada SP de mutación lo invoca)
+                                       │
+                                       ├→ #29 (#11, #15, #12, #26)
+                                       │
+                                       ├→ #30 → #31
+                                       │
+                                       ├→ #32 (#12, #22, #24)
+                                       │
+                                       └→ #33 (tests — al final)
 ```
 
 ---
@@ -685,7 +782,8 @@ Endpoints:
 | 8 | Auth service/routes | ✅ |
 | 9 | Auth + role middlewares + seed | ✅ |
 | 9.1 | Adaptación auth a requerimientos finales | 🆕 |
-| 10 | Zonas + seed Montería | evolución |
+| 9.2 | Migración a `pg` + MVC + Stored Procedures | 🆕 |
+| 10 | Zonas + seed Montería (sobre nuevo patrón) | evolución |
 | 11 | Refugios + alerta 90% | evolución |
 | 12 | Familias + PrivacyConsent | evolución |
 | 13 | Personas | evolución |
@@ -799,20 +897,20 @@ Endpoints:
 | HU-30 | Zonas sin entregas | #29, #31 |
 | HU-31 | Historial de auditoría | #28 |
 
-### RN → Issue
+### RN → Issue → SP que la enforza
 
-| RN | Descripción | Issue(s) |
-|----|-------------|----------|
-| RN-01 | Cobertura mínima 3 días | #23, #24 |
-| RN-02 | Prevención de duplicidad | #23 |
-| RN-03 | Capacidad de bodega | #15, #19 |
-| RN-04 | Priorización configurable | #20 |
-| RN-05 | Descuento automático | #24 |
-| RN-06 | Trazabilidad completa | #31 |
-| RN-07 | Códigos secuenciales | #9.1 (ENT), #12 (FAM), #19 (DON), #25 (PLN) |
-| RN-08 | Recálculo de prioridad | #14, #20, #24 |
-| RN-09 | Aviso de privacidad | #12 |
-| RN-10 | Ubicación requerida | #11, #15 |
+| RN | Descripción | Issue(s) | SP/FN |
+|----|-------------|----------|-------|
+| RN-01 | Cobertura mínima 3 días | #22, #23, #24 | CHECK `coverage_days >= 3` + `sp_delivery_create` |
+| RN-02 | Prevención de duplicidad | #23 | `fn_delivery_check_eligibility`, excepción `sp_delivery_create_exception` |
+| RN-03 | Capacidad de bodega | #15, #16, #19 | CHECK + `sp_donations_create`, `sp_inventory_adjust` |
+| RN-04 | Priorización configurable | #20 | `fn_priority_score`, `scoring_config` |
+| RN-05 | Descuento automático | #24 | `sp_delivery_create` (transacción interna) |
+| RN-06 | Trazabilidad completa | #31 | `fn_report_traceability` (recursive CTE) |
+| RN-07 | Códigos secuenciales | #9.2 (helper), #9.1 (ENT prefix), #12 (FAM), #19 (DON), #25 (PLN) | `fn_next_code(p_prefix)` |
+| RN-08 | Recálculo de prioridad | #14, #20, #24 | `sp_persons_upsert_and_recalc`, `sp_delivery_create` |
+| RN-09 | Aviso de privacidad | #12 | `sp_families_create_with_consent` (lanza `SH422` si no llega flag) |
+| RN-10 | Ubicación requerida | #11, #15 | `NOT NULL` en DDL de `shelters` y `warehouses` |
 
 ### RNF → Issue
 
@@ -857,6 +955,7 @@ Endpoints:
 | 2 | #4, #5, #6 | Infraestructura base |
 | 3 | #7, #8, #9 | Autenticación v1 |
 | 3.1 | #9.1 | Adaptación auth a requerimientos finales |
+| 3.2 | #9.2 | Migración a `pg` + MVC + Stored Procedures (cambio fundacional) |
 | 4 | #10, #11 | Zonas y refugios |
 | 5 | #12, #13, #14 | Familias + privacy + personas |
 | 6 | #15, #16, #17 | Bodegas e inventario |

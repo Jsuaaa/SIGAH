@@ -1,28 +1,30 @@
-import { PrismaClient } from '@prisma/client';
-import { PrismaPg } from '@prisma/adapter-pg';
 import dotenv from 'dotenv';
 import path from 'path';
 
-// Load .env.test if it exists, otherwise fall back to .env
+// Load .env.test if it exists, otherwise fall back to .env. This must run
+// before importing anything that reads process.env (e.g. config/env.ts).
 dotenv.config({ path: path.join(__dirname, '../.env.test') });
 dotenv.config({ path: path.join(__dirname, '../.env') });
 
-const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL! });
-const prisma = new PrismaClient({ adapter });
+import { pool } from '../src/config/database';
 
 /**
- * Registers afterEach cleanup for the calling test suite.
- * Import this file at the top of each integration test that needs DB cleanup.
+ * Truncates the tables that integration tests mutate, restarting identity
+ * sequences. Keeps the seeded admin user (`admin@sigah.gov.co`) so JWT helpers
+ * keep working.
  *
- * Cleans:
- *  - All zones (order matters: zones have no deps yet, but will when #11/#12/#15 land)
- *  - All non-seed users (keeps admin@sigah.gov.co for token helpers)
+ * Order matters: child tables before parents (zones currently has no
+ * dependents, but the helper is forward-compatible).
  */
 afterEach(async () => {
-  await prisma.zone.deleteMany();
-  await prisma.user.deleteMany({
-    where: { email: { not: 'admin@sigah.gov.co' } },
-  });
+  await pool.query('TRUNCATE zones RESTART IDENTITY CASCADE');
+  await pool.query(
+    `DELETE FROM users WHERE email <> 'admin@sigah.gov.co'`,
+  );
 });
 
-export { prisma };
+afterAll(async () => {
+  await pool.end();
+});
+
+export { pool };

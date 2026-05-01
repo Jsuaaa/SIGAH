@@ -1,7 +1,8 @@
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
-import { Role } from '@prisma/client';
-import prisma from '../config/prisma';
+import { UserModel } from '../models/user.model';
+import { briefUserView, type BriefUser } from '../views/user.view';
+import type { Role } from '../types/entities';
 import { JWT_SECRET } from '../config/env';
 import { JWT_EXPIRATION } from '../config/constants';
 import { AppError } from '../utils/AppError';
@@ -22,24 +23,20 @@ interface ChangePasswordInput {
   newPassword: string;
 }
 
-export async function register({ email, password, role }: RegisterInput) {
-  const existing = await prisma.user.findUnique({ where: { email } });
-  if (existing) {
-    throw new AppError('Email already registered', 409);
-  }
-
+export async function register({
+  email,
+  password,
+  role,
+}: RegisterInput): Promise<BriefUser> {
   const password_hash = await bcrypt.hash(password, 10);
-
-  const user = await prisma.user.create({
-    data: { email, password_hash, role },
-    select: { id: true, email: true, role: true, created_at: true },
-  });
-
-  return user;
+  // fn_users_create raises SH409 on duplicate email; mapped to AppError(409)
+  // by the db client.
+  const user = await UserModel.create({ email, password_hash, role });
+  return briefUserView(user);
 }
 
-export async function login({ email, password }: LoginInput) {
-  const user = await prisma.user.findUnique({ where: { email } });
+export async function login({ email, password }: LoginInput): Promise<{ token: string }> {
+  const user = await UserModel.findByEmail(email);
   if (!user) {
     throw new AppError('Invalid credentials', 401);
   }
@@ -58,21 +55,19 @@ export async function login({ email, password }: LoginInput) {
   return { token };
 }
 
-export async function getProfile(userId: number) {
-  const user = await prisma.user.findUnique({
-    where: { id: userId },
-    select: { id: true, email: true, role: true, created_at: true, updated_at: true },
-  });
-
+export async function getProfile(userId: number): Promise<BriefUser> {
+  const user = await UserModel.findById(userId);
   if (!user) {
     throw new AppError('User not found', 404);
   }
-
-  return user;
+  return briefUserView(user, true);
 }
 
-export async function changePassword(userId: number, { oldPassword, newPassword }: ChangePasswordInput) {
-  const user = await prisma.user.findUnique({ where: { id: userId } });
+export async function changePassword(
+  userId: number,
+  { oldPassword, newPassword }: ChangePasswordInput,
+): Promise<void> {
+  const user = await UserModel.findById(userId);
   if (!user) {
     throw new AppError('User not found', 404);
   }
@@ -83,9 +78,5 @@ export async function changePassword(userId: number, { oldPassword, newPassword 
   }
 
   const password_hash = await bcrypt.hash(newPassword, 10);
-
-  await prisma.user.update({
-    where: { id: userId },
-    data: { password_hash },
-  });
+  await UserModel.changePassword(userId, password_hash);
 }

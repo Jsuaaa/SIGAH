@@ -28,8 +28,8 @@ RUN pnpm build
 # ==========================================
 FROM node:22-alpine AS runtime
 
-# Prisma on Alpine needs openssl + libc6-compat
-RUN apk add --no-cache openssl libc6-compat
+# bcrypt and pg both ship native bindings; libc6-compat keeps Alpine happy
+RUN apk add --no-cache libc6-compat
 
 # Install pnpm
 RUN npm install -g pnpm@10.30.1
@@ -44,11 +44,8 @@ COPY server/package.json server/pnpm-lock.yaml ./
 # Install all deps (tsx is a devDependency but needed at runtime)
 RUN pnpm install --frozen-lockfile
 
-# Copy server source + prisma schema + migrations
+# Copy server source (includes db/migrations, db/procedures, db/seeds)
 COPY server/ ./
-
-# Generate Prisma client (uses schema.prisma)
-RUN pnpm exec prisma generate
 
 # Copy built frontend from Stage 1 to the path the server expects
 COPY --from=frontend-builder /app/client/dist /app/client/dist
