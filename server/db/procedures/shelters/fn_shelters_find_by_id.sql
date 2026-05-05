@@ -1,8 +1,8 @@
--- Shelters that belong to a zone. Returns the full shelter row plus derived
--- occupancy fields (is_over_capacity, occupancy_ratio) so the caller can
--- render the >90% alert without an extra round-trip.
+-- Find a shelter by primary key. Returns the row enriched with derived
+-- occupancy fields (is_over_capacity, occupancy_ratio). Empty result if the
+-- shelter does not exist.
 
-CREATE OR REPLACE FUNCTION fn_zones_shelters(p_zone_id INTEGER)
+CREATE OR REPLACE FUNCTION fn_shelters_find_by_id(p_id INTEGER)
 RETURNS TABLE (data JSONB)
 LANGUAGE sql STABLE AS $$
     SELECT to_jsonb(s) || jsonb_build_object(
@@ -10,6 +10,6 @@ LANGUAGE sql STABLE AS $$
         'occupancy_ratio',  ROUND((s.current_occupancy::numeric / NULLIF(s.max_capacity, 0))::numeric, 4)
     ) AS data
       FROM shelters s
-     WHERE s.zone_id = p_zone_id
-     ORDER BY s.id ASC;
+     WHERE s.id = p_id
+     LIMIT 1;
 $$;
