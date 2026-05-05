@@ -7,6 +7,12 @@ import { NODE_ENV } from './config/env';
 import { errorHandler } from './middlewares/errorHandler.middleware';
 import authRoutes from './routes/auth.routes';
 import zonesRoutes from './routes/zones.routes';
+import sheltersRoutes from './routes/shelters.routes';
+import familiesRoutes from './routes/families.routes';
+import personsRoutes from './routes/persons.routes';
+import warehousesRoutes from './routes/warehouses.routes';
+import resourceTypesRoutes from './routes/resourceTypes.routes';
+import inventoryRoutes from './routes/inventory.routes';
 
 const app = express();
 
@@ -47,6 +53,12 @@ app.get('/api/v1/health', (_req, res) => {
 // API routes
 app.use('/api/v1/auth', authRoutes);
 app.use('/api/v1/zones', zonesRoutes);
+app.use('/api/v1/shelters', sheltersRoutes);
+app.use('/api/v1/families', familiesRoutes);
+app.use('/api/v1/persons', personsRoutes);
+app.use('/api/v1/warehouses', warehousesRoutes);
+app.use('/api/v1/resource-types', resourceTypesRoutes);
+app.use('/api/v1/inventory', inventoryRoutes);
 
 // Global error handler (must be after all routes)
 app.use(errorHandler);

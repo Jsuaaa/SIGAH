@@ -1,5 +1,11 @@
 import * as zonesService from '../services/zones.service';
+import * as sheltersService from '../services/shelters.service';
+import * as familiesService from '../services/families.service';
+import * as warehousesService from '../services/warehouses.service';
 import type { RiskLevel } from '../types/entities';
+import { sheltersView } from '../views/shelter.view';
+import { familiesView } from '../views/family.view';
+import { warehousesView } from '../views/warehouse.view';
 import { asyncHandler } from '../utils/asyncHandler';
 import { parsePagination } from '../utils/pagination';
 
@@ -58,17 +64,20 @@ export const remove = asyncHandler(async (req, res) => {
 export const listFamiliesByZone = asyncHandler(async (req, res) => {
   const id = Number(req.params.id);
   await zonesService.assertExists(id);
-  res.json({ success: true, data: [] });
+  const families = await familiesService.listByZone(id);
+  res.json({ success: true, data: familiesView(families) });
 });
 
 export const listSheltersByZone = asyncHandler(async (req, res) => {
   const id = Number(req.params.id);
   await zonesService.assertExists(id);
-  res.json({ success: true, data: [] });
+  const shelters = await sheltersService.listByZone(id);
+  res.json({ success: true, data: sheltersView(shelters) });
 });
 
 export const listWarehousesByZone = asyncHandler(async (req, res) => {
   const id = Number(req.params.id);
   await zonesService.assertExists(id);
-  res.json({ success: true, data: [] });
+  const warehouses = await warehousesService.listByZone(id);
+  res.json({ success: true, data: warehousesView(warehouses) });
 });
