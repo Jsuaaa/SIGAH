@@ -38,7 +38,7 @@ LANGUAGE sql STABLE AS $$
         SELECT
             f.id                                AS family_id,
             f.family_code                       AS family_code,
-            f.head_of_family_name               AS family_name,
+            f.head_document                     AS family_name,
             f.zone_id,
             z.name                              AS zone_name,
             f.priority_score,
