@@ -17,24 +17,24 @@ router.use(authenticate);
 router.get('/', controller.list);
 router.get('/:id', validate(idParamRule), controller.getById);
 
-// Mutations — ADMIN or COORDINATOR
+// Mutations — ADMIN or COORDINADOR_LOGISTICA (RF-12)
 router.post(
   '/',
-  authorize('ADMIN', 'COORDINATOR'),
+  authorize('ADMIN', 'COORDINADOR_LOGISTICA'),
   validate(createResourceTypeRules),
   controller.create,
 );
 router.put(
   '/:id',
-  authorize('ADMIN', 'COORDINATOR'),
+  authorize('ADMIN', 'COORDINADOR_LOGISTICA'),
   validate([...idParamRule, ...updateResourceTypeRules]),
   controller.update,
 );
 
-// Soft delete (deactivate) — keeps historical references valid (HU-14 CA4).
+// Soft delete (deactivar) — mantiene referencias históricas válidas (HU-14 CA4).
 router.delete(
   '/:id',
-  authorize('ADMIN', 'COORDINATOR'),
+  authorize('ADMIN', 'COORDINADOR_LOGISTICA'),
   validate(idParamRule),
   controller.remove,
 );

@@ -26,9 +26,10 @@ function makeToken(role: string, id = 9999): string {
 }
 
 const adminToken = makeToken('ADMIN');
-const coordinatorToken = makeToken('COORDINATOR');
-const operatorToken = makeToken('OPERATOR');
-const viewerToken = makeToken('VIEWER');
+// Roles actualizados a los 6 valores finales del PDF (migración #9.1)
+const coordinatorToken = makeToken('COORDINADOR_LOGISTICA');
+const operatorToken = makeToken('OPERADOR_ENTREGAS');
+const viewerToken = makeToken('FUNCIONARIO_CONTROL');
 
 const validZone = {
   name: 'Test Zone Shelters',

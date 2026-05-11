@@ -1,7 +1,9 @@
 import * as familiesService from '../services/families.service';
 import * as personsService from '../services/persons.service';
+import * as deliveriesService from '../services/deliveries.service';
 import { familyView, familiesView } from '../views/family.view';
 import { personsView } from '../views/person.view';
+import { deliveriesView } from '../views/delivery.view';
 import type { FamilyStatus } from '../types/entities';
 import type { FamilyOrderBy } from '../models/family.model';
 import { asyncHandler } from '../utils/asyncHandler';
@@ -89,4 +91,11 @@ export const listPersons = asyncHandler(async (req, res) => {
   const id = Number(req.params.id);
   const persons = await personsService.listByFamily(id);
   res.json({ success: true, data: personsView(persons) });
+});
+
+export const listDeliveries = asyncHandler(async (req, res) => {
+  const id = Number(req.params.id);
+  await familiesService.getById(id); // surfaces 404 if missing
+  const data = await deliveriesService.listByFamily(id);
+  res.json({ success: true, data: deliveriesView(data) });
 });

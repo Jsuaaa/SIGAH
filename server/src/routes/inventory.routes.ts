@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import * as controller from '../controllers/inventory.controller';
+import * as alertsController from '../controllers/alerts.controller';
 import { authenticate } from '../middlewares/auth.middleware';
 import { authorize } from '../middlewares/role.middleware';
 import { validate } from '../middlewares/validate.middleware';
@@ -14,21 +15,22 @@ const router = Router();
 router.use(authenticate);
 
 router.get('/summary', controller.summary);
+router.get('/alerts', alertsController.inventoryAlerts);
 router.get('/', controller.list);
 
-// POST upsert — used by donation reception (#19) and admin tooling. Limited
-// to ADMIN/COORDINATOR; donation flow itself reaches sp_donations_create.
+// POST upsert — usado por recepción de donaciones (#19) y tooling admin.
+// Limitado a ADMIN/COORDINADOR_LOGISTICA.
 router.post(
   '/',
-  authorize('ADMIN', 'COORDINATOR'),
+  authorize('ADMIN', 'COORDINADOR_LOGISTICA'),
   validate(upsertInventoryRules),
   controller.upsert,
 );
 
-// HU-17 CA5: only ADMIN/COORDINADOR_LOGISTICA can perform manual adjustments.
+// HU-17 CA5: solo ADMIN/COORDINADOR_LOGISTICA pueden hacer ajustes manuales.
 router.put(
   '/:id/adjustment',
-  authorize('ADMIN', 'COORDINATOR'),
+  authorize('ADMIN', 'COORDINADOR_LOGISTICA'),
   validate([...idParamRule, ...adjustInventoryRules]),
   controller.adjust,
 );

@@ -18,28 +18,29 @@ router.use(authenticate);
 router.get('/', sheltersController.list);
 router.get('/:id', validate(idParamRule), sheltersController.getById);
 
-// Mutations — ADMIN or COORDINATOR only
+// Mutations — ADMIN or COORDINADOR_LOGISTICA (RF-05)
 router.post(
   '/',
-  authorize('ADMIN', 'COORDINATOR'),
+  authorize('ADMIN', 'COORDINADOR_LOGISTICA'),
   validate(createShelterRules),
   sheltersController.create,
 );
 router.put(
   '/:id',
-  authorize('ADMIN', 'COORDINATOR'),
+  authorize('ADMIN', 'COORDINADOR_LOGISTICA'),
   validate([...idParamRule, ...updateShelterRules]),
   sheltersController.update,
 );
+// Ocupancy updates — también OPERADOR_ENTREGAS (trabaja en campo)
 router.put(
   '/:id/occupancy',
-  authorize('ADMIN', 'COORDINATOR', 'OPERATOR'),
+  authorize('ADMIN', 'COORDINADOR_LOGISTICA', 'OPERADOR_ENTREGAS'),
   validate([...idParamRule, ...occupancyRules]),
   sheltersController.setOccupancy,
 );
 router.delete(
   '/:id',
-  authorize('ADMIN', 'COORDINATOR'),
+  authorize('ADMIN', 'COORDINADOR_LOGISTICA'),
   validate(idParamRule),
   sheltersController.remove,
 );

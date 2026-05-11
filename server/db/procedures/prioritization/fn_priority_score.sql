@@ -82,11 +82,27 @@ BEGIN
            v_max_days
       FROM scoring_config;
 
-    -- TODO (#22): replace these placeholders once `deliveries` exists.
-    --   v_deliveries  = count of delivered rows for this family.
-    --   v_days_no_aid = days since the most recent delivery or family
-    --                   creation, capped at MAX_DAYS.
-    -- Until then they stay at 0 so the score still moves with composition.
+    -- Deliveries received (#20 CA2): count of ENTREGADA rows for this family.
+    SELECT COUNT(*)::DOUBLE PRECISION
+      INTO v_deliveries
+      FROM deliveries
+     WHERE family_id = p_family_id
+       AND status = 'ENTREGADA';
+
+    -- Days without aid (#20 CA2): days since last ENTREGADA delivery, capped
+    -- at v_max_days. Falls back to days since family.created_at when no
+    -- delivery exists yet.
+    SELECT LEAST(
+        COALESCE(
+            EXTRACT(DAY FROM (now() - MAX(d.delivery_date)))::DOUBLE PRECISION,
+            EXTRACT(DAY FROM (now() - v_family.created_at))::DOUBLE PRECISION
+        ),
+        v_max_days
+    )
+      INTO v_days_no_aid
+      FROM deliveries d
+     WHERE d.family_id = p_family_id
+       AND d.status = 'ENTREGADA';
 
     c_members    := v_w_members     * v_family.num_members;
     c_children   := v_w_children_5  * v_family.num_children_under_5;

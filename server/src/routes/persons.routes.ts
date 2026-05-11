@@ -17,22 +17,22 @@ router.use(authenticate);
 // Read-only — any authenticated user
 router.get('/search', validate(searchByDocumentRules), personsController.findByDocument);
 
-// Mutations — ADMIN/COORDINATOR/OPERATOR (census workers add persons in the field)
+// Mutations — ADMIN/COORDINADOR_LOGISTICA/CENSADOR (censan en campo — RF-08)
 router.post(
   '/',
-  authorize('ADMIN', 'COORDINATOR', 'OPERATOR'),
+  authorize('ADMIN', 'COORDINADOR_LOGISTICA', 'CENSADOR'),
   validate(createPersonRules),
   personsController.create,
 );
 router.put(
   '/:id',
-  authorize('ADMIN', 'COORDINATOR', 'OPERATOR'),
+  authorize('ADMIN', 'COORDINADOR_LOGISTICA', 'CENSADOR'),
   validate([...idParamRule, ...updatePersonRules]),
   personsController.update,
 );
 router.delete(
   '/:id',
-  authorize('ADMIN', 'COORDINATOR'),
+  authorize('ADMIN', 'COORDINADOR_LOGISTICA'),
   validate(idParamRule),
   personsController.remove,
 );

@@ -21,22 +21,22 @@ router.get('/', warehousesController.list);
 router.get('/:id', validate(idParamRule), warehousesController.getById);
 router.get('/:id/inventory', validate(idParamRule), warehousesController.inventory);
 
-// Mutations — ADMIN or COORDINATOR
+// Mutations — ADMIN or COORDINADOR_LOGISTICA (RF-11)
 router.post(
   '/',
-  authorize('ADMIN', 'COORDINATOR'),
+  authorize('ADMIN', 'COORDINADOR_LOGISTICA'),
   validate(createWarehouseRules),
   warehousesController.create,
 );
 router.put(
   '/:id',
-  authorize('ADMIN', 'COORDINATOR'),
+  authorize('ADMIN', 'COORDINADOR_LOGISTICA'),
   validate([...idParamRule, ...updateWarehouseRules]),
   warehousesController.update,
 );
 router.delete(
   '/:id',
-  authorize('ADMIN', 'COORDINATOR'),
+  authorize('ADMIN', 'COORDINADOR_LOGISTICA'),
   validate(idParamRule),
   warehousesController.remove,
 );

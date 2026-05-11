@@ -42,9 +42,10 @@ beforeAll(async () => {
     });
 
   adminToken = sign('ADMIN');
-  coordinatorToken = sign('COORDINATOR');
-  operatorToken = sign('OPERATOR');
-  viewerToken = sign('VIEWER');
+  // Roles actualizados a los 6 valores finales del PDF (migración #9.1)
+  coordinatorToken = sign('COORDINADOR_LOGISTICA');
+  operatorToken = sign('CENSADOR');       // CENSADOR puede crear/editar personas en campo
+  viewerToken = sign('FUNCIONARIO_CONTROL');
 });
 
 // ---------------------------------------------------------------------------

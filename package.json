@@ -15,7 +15,7 @@
     "dev:client": "npm --prefix client run dev",
     "build": "npm --prefix client run build",
     "start": "npm --prefix server run start",
-    "test": "npm --prefix server run test",
+    "test": "pnpm --filter server test",
     "install:all": "npm --prefix server install && npm --prefix client install",
     "db:up": "docker compose up -d --wait postgres",
     "db:down": "docker compose down",

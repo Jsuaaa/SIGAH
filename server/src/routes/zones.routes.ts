@@ -14,15 +14,25 @@ router.use(authenticate);
 router.get('/', zonesController.list);
 router.get('/:id', validate(idParamRule), zonesController.getById);
 
-// Mutations — ADMIN or COORDINATOR only
-router.post('/', authorize('ADMIN', 'COORDINATOR'), validate(createZoneRules), zonesController.create);
+// Mutations — ADMIN or COORDINADOR_LOGISTICA (RF-04)
+router.post(
+  '/',
+  authorize('ADMIN', 'COORDINADOR_LOGISTICA'),
+  validate(createZoneRules),
+  zonesController.create,
+);
 router.put(
   '/:id',
-  authorize('ADMIN', 'COORDINATOR'),
+  authorize('ADMIN', 'COORDINADOR_LOGISTICA'),
   validate([...idParamRule, ...updateZoneRules]),
   zonesController.update,
 );
-router.delete('/:id', authorize('ADMIN', 'COORDINATOR'), validate(idParamRule), zonesController.remove);
+router.delete(
+  '/:id',
+  authorize('ADMIN', 'COORDINADOR_LOGISTICA'),
+  validate(idParamRule),
+  zonesController.remove,
+);
 
 // Nested stubs (real implementation deferred to issues #11, #12, #15)
 router.get('/:id/families', validate(idParamRule), zonesController.listFamiliesByZone);
