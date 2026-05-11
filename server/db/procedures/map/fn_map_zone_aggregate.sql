@@ -73,7 +73,7 @@ BEGIN
                 'current_weight_kg', w.current_weight_kg,
                 'stock_pct',         CASE
                                        WHEN w.max_capacity_kg > 0
-                                       THEN ROUND((w.current_weight_kg::numeric / w.max_capacity_kg) * 100, 2)
+                                       THEN ROUND(((w.current_weight_kg / w.max_capacity_kg) * 100)::numeric, 2)
                                        ELSE NULL
                                      END
               )
