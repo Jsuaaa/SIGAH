@@ -122,10 +122,12 @@ LANGUAGE sql STABLE AS $$
          WHERE w.max_capacity_kg > 0
            AND w.current_weight_kg / w.max_capacity_kg > 0.85
     )
-    SELECT * FROM low_stock
-    UNION ALL SELECT * FROM expired
-    UNION ALL SELECT * FROM expiring_soon
-    UNION ALL SELECT * FROM warehouse_full
+    SELECT * FROM (
+        SELECT * FROM low_stock
+        UNION ALL SELECT * FROM expired
+        UNION ALL SELECT * FROM expiring_soon
+        UNION ALL SELECT * FROM warehouse_full
+    ) all_alerts
     ORDER BY
         CASE severity WHEN 'CRITICAL' THEN 0 WHEN 'HIGH' THEN 1 ELSE 2 END,
         kind;
