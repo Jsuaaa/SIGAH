@@ -19,28 +19,230 @@ const router = Router();
 router.use(authenticate);
 router.use(authorize('ADMIN', 'COORDINADOR_LOGISTICA', 'FUNCIONARIO_CONTROL'));
 
-// RF-28 CA1 — Cobertura vigente por zona.
+/**
+ * @swagger
+ * /reports/coverage:
+ *   get:
+ *     tags: [Reports]
+ *     summary: Cobertura vigente por zona (ADMIN, COORDINADOR_LOGISTICA, FUNCIONARIO_CONTROL)
+ *     responses:
+ *       200:
+ *         description: Porcentaje de cobertura de ayuda por zona
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success: { type: boolean }
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       zone_id: { type: integer }
+ *                       zone_name: { type: string }
+ *                       total_families: { type: integer }
+ *                       families_with_coverage: { type: integer }
+ *                       coverage_pct: { type: number }
+ *       401: { $ref: '#/components/responses/Unauthorized' }
+ *       403: { $ref: '#/components/responses/Forbidden' }
+ */
 router.get('/coverage', controller.coverage);
 
-// RF-28 CA2 — Inventario por bodega y categoría.
+/**
+ * @swagger
+ * /reports/inventory:
+ *   get:
+ *     tags: [Reports]
+ *     summary: Inventario por bodega y categoría (ADMIN, COORDINADOR_LOGISTICA, FUNCIONARIO_CONTROL)
+ *     parameters:
+ *       - in: query
+ *         name: warehouse_id
+ *         schema: { type: integer, minimum: 1 }
+ *         description: Filtrar por bodega
+ *       - in: query
+ *         name: category
+ *         schema: { type: string, enum: [FOOD, BLANKET, MATTRESS, HYGIENE, MEDICATION] }
+ *         description: Filtrar por categoría
+ *     responses:
+ *       200:
+ *         description: Reporte de inventario
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success: { type: boolean }
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       warehouse_id: { type: integer }
+ *                       warehouse_name: { type: string }
+ *                       category: { type: string }
+ *                       total_quantity: { type: string }
+ *                       total_weight_kg: { type: number }
+ *       401: { $ref: '#/components/responses/Unauthorized' }
+ *       403: { $ref: '#/components/responses/Forbidden' }
+ */
 router.get('/inventory', validate(inventoryRules), controller.inventory);
 
-// RF-28 CA3 — Familias sin cobertura (unattended), con filtros de zona y fecha.
+/**
+ * @swagger
+ * /reports/unattended-families:
+ *   get:
+ *     tags: [Reports]
+ *     summary: Familias sin cobertura de ayuda (ADMIN, COORDINADOR_LOGISTICA, FUNCIONARIO_CONTROL)
+ *     parameters:
+ *       - in: query
+ *         name: zone_id
+ *         schema: { type: integer, minimum: 1 }
+ *         description: Filtrar por zona
+ *       - in: query
+ *         name: since
+ *         schema: { type: string, format: date }
+ *         description: Sin entrega desde esta fecha
+ *     responses:
+ *       200:
+ *         description: Familias sin cobertura activa
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success: { type: boolean }
+ *                 data:
+ *                   type: array
+ *                   items: { $ref: '#/components/schemas/Family' }
+ *       401: { $ref: '#/components/responses/Unauthorized' }
+ *       403: { $ref: '#/components/responses/Forbidden' }
+ */
 router.get('/unattended-families', validate(unattendedFamiliesRules), controller.unattendedFamilies);
 
-// ── Issue #31 — Advanced reports (ADMIN | COORDINADOR_LOGISTICA | FUNCIONARIO_CONTROL) ──
-
-// Issue #31 CA1 — Donaciones agrupadas por tipo de donante + export PDF/Excel.
+/**
+ * @swagger
+ * /reports/donations-by-type:
+ *   get:
+ *     tags: [Reports]
+ *     summary: Donaciones agrupadas por tipo de donante con exportación
+ *     parameters:
+ *       - in: query
+ *         name: from
+ *         schema: { type: string, format: date }
+ *         description: Fecha inicio
+ *       - in: query
+ *         name: to
+ *         schema: { type: string, format: date }
+ *         description: Fecha fin
+ *       - in: query
+ *         name: format
+ *         schema: { type: string, enum: [json, pdf, xlsx] }
+ *         description: Formato de exportación
+ *     responses:
+ *       200:
+ *         description: Donaciones por tipo de donante (JSON) o archivo binario (PDF/XLSX)
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success: { type: boolean }
+ *                 data: { type: array, items: { type: object } }
+ *       401: { $ref: '#/components/responses/Unauthorized' }
+ *       403: { $ref: '#/components/responses/Forbidden' }
+ */
 router.get('/donations-by-type', validate(donationsByTypeRules), controller.donationsByType);
 
-// Issue #31 CA2 — Entregas por zona con count y peso + export PDF/Excel.
+/**
+ * @swagger
+ * /reports/deliveries-by-zone:
+ *   get:
+ *     tags: [Reports]
+ *     summary: Entregas por zona con conteo y peso con exportación
+ *     parameters:
+ *       - in: query
+ *         name: from
+ *         schema: { type: string, format: date }
+ *         description: Fecha inicio
+ *       - in: query
+ *         name: to
+ *         schema: { type: string, format: date }
+ *         description: Fecha fin
+ *       - in: query
+ *         name: format
+ *         schema: { type: string, enum: [json, pdf, xlsx] }
+ *         description: Formato de exportación
+ *     responses:
+ *       200:
+ *         description: Entregas agrupadas por zona
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success: { type: boolean }
+ *                 data: { type: array, items: { type: object } }
+ *       401: { $ref: '#/components/responses/Unauthorized' }
+ *       403: { $ref: '#/components/responses/Forbidden' }
+ */
 router.get('/deliveries-by-zone', validate(deliveriesByZoneRules), controller.deliveriesByZone);
 
-// Issue #31 CA3 — Dashboard de métricas (1 sola query JSONB) + export PDF/Excel.
+/**
+ * @swagger
+ * /reports/dashboard:
+ *   get:
+ *     tags: [Reports]
+ *     summary: Dashboard de métricas generales con exportación
+ *     parameters:
+ *       - in: query
+ *         name: format
+ *         schema: { type: string, enum: [json, pdf, xlsx] }
+ *         description: Formato de exportación
+ *     responses:
+ *       200:
+ *         description: Métricas del dashboard (familias, entregas, inventario, donaciones)
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success: { type: boolean }
+ *                 data: { type: object }
+ *       401: { $ref: '#/components/responses/Unauthorized' }
+ *       403: { $ref: '#/components/responses/Forbidden' }
+ */
 router.get('/dashboard', validate(dashboardRules), controller.dashboard);
 
-// Issue #31 CA5/CA6 — Trazabilidad donante → bodega → entrega → familia.
-// Requiere ?donation_id=X o ?resource_type_id=Y (validado en controller, HU-29 CA1).
+/**
+ * @swagger
+ * /reports/traceability:
+ *   get:
+ *     tags: [Reports]
+ *     summary: Trazabilidad donante → bodega → entrega → familia
+ *     parameters:
+ *       - in: query
+ *         name: donation_id
+ *         schema: { type: integer, minimum: 1 }
+ *         description: Trazar por donación específica
+ *       - in: query
+ *         name: resource_type_id
+ *         schema: { type: integer, minimum: 1 }
+ *         description: Trazar por tipo de recurso
+ *     responses:
+ *       200:
+ *         description: Cadena de trazabilidad completa
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success: { type: boolean }
+ *                 data: { type: array, items: { type: object } }
+ *       401: { $ref: '#/components/responses/Unauthorized' }
+ *       403: { $ref: '#/components/responses/Forbidden' }
+ *       422: { $ref: '#/components/responses/ValidationError' }
+ */
 router.get('/traceability', validate(traceabilityRules), controller.traceability);
 
 export default router;

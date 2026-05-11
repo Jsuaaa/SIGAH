@@ -19,10 +19,83 @@ const router = Router();
 // All sync endpoints require authentication.
 router.use(authenticate);
 
-// GET /status must be before POST / to avoid param collision (though here they differ).
+/**
+ * @swagger
+ * /sync/status:
+ *   get:
+ *     tags: [Sync]
+ *     summary: Estado de sincronización del usuario actual
+ *     description: Retorna estadísticas de operaciones offline procesadas/pendientes.
+ *     responses:
+ *       200:
+ *         description: Estado de sincronización
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success: { type: boolean }
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     processed: { type: integer }
+ *                     failed: { type: integer }
+ *                     last_sync_at: { type: string, format: date-time, nullable: true }
+ *       401: { $ref: '#/components/responses/Unauthorized' }
+ */
 router.get('/status', syncController.status);
 
-// POST / — process a batch of pending offline ops.
+/**
+ * @swagger
+ * /sync:
+ *   post:
+ *     tags: [Sync]
+ *     summary: Procesar lote de operaciones offline
+ *     description: Recibe operaciones acumuladas sin conexión y las aplica en orden. Usa Idempotency-Key para cada op.
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [ops]
+ *             properties:
+ *               ops:
+ *                 type: array
+ *                 items:
+ *                   type: object
+ *                   required: [idempotency_key, method, path, body]
+ *                   properties:
+ *                     idempotency_key: { type: string, format: uuid }
+ *                     method: { type: string, enum: [POST, PUT, DELETE] }
+ *                     path: { type: string, description: 'Ruta relativa al prefijo /api/v1' }
+ *                     body: { type: object }
+ *                     created_at: { type: string, format: date-time }
+ *     responses:
+ *       200:
+ *         description: Resultado del procesamiento del lote
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success: { type: boolean }
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     processed: { type: integer }
+ *                     failed: { type: integer }
+ *                     results:
+ *                       type: array
+ *                       items:
+ *                         type: object
+ *                         properties:
+ *                           idempotency_key: { type: string }
+ *                           status: { type: integer }
+ *                           body: { type: object }
+ *       401: { $ref: '#/components/responses/Unauthorized' }
+ *       422: { $ref: '#/components/responses/ValidationError' }
+ */
 router.post('/', validate(processBatchRules), syncController.processBatch);
 
 export default router;

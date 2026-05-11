@@ -12,25 +12,189 @@ const router = Router();
 // All map endpoints require a valid JWT
 router.use(authenticate);
 
-// GET /map/shelters — coords, occupancy, capacity, % occupancy (AC1)
+/**
+ * @swagger
+ * /map/shelters:
+ *   get:
+ *     tags: [Map]
+ *     summary: Datos geoespaciales de refugios para mapa
+ *     responses:
+ *       200:
+ *         description: Refugios con coordenadas, ocupación y capacidad
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success: { type: boolean }
+ *                 data:
+ *                   type: array
+ *                   items: { $ref: '#/components/schemas/Shelter' }
+ *       401: { $ref: '#/components/responses/Unauthorized' }
+ */
 router.get('/shelters', mapController.shelters);
 
-// GET /map/warehouses — coords, % stock, max_capacity_kg (AC1)
+/**
+ * @swagger
+ * /map/warehouses:
+ *   get:
+ *     tags: [Map]
+ *     summary: Datos geoespaciales de bodegas para mapa
+ *     responses:
+ *       200:
+ *         description: Bodegas con coordenadas, porcentaje de stock y capacidad máxima
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success: { type: boolean }
+ *                 data:
+ *                   type: array
+ *                   items: { $ref: '#/components/schemas/Warehouse' }
+ *       401: { $ref: '#/components/responses/Unauthorized' }
+ */
 router.get('/warehouses', mapController.warehouses);
 
-// GET /map/families — coords + status + priority_score, sin datos personales (AC2)
+/**
+ * @swagger
+ * /map/families:
+ *   get:
+ *     tags: [Map]
+ *     summary: Datos geoespaciales de familias para mapa (sin datos personales)
+ *     responses:
+ *       200:
+ *         description: Familias con coordenadas, estado y priority_score
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success: { type: boolean }
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       id: { type: integer }
+ *                       latitude: { type: number, nullable: true }
+ *                       longitude: { type: number, nullable: true }
+ *                       status: { type: string, enum: [ACTIVO, EN_REFUGIO, EVACUADO] }
+ *                       priority_score: { type: number }
+ *                       zone_id: { type: integer }
+ *       401: { $ref: '#/components/responses/Unauthorized' }
+ */
 router.get('/families', mapController.families);
 
-// GET /map/vectors — coords + risk_level + status + vector_type (AC1)
+/**
+ * @swagger
+ * /map/vectors:
+ *   get:
+ *     tags: [Map]
+ *     summary: Datos geoespaciales de vectores sanitarios para mapa
+ *     responses:
+ *       200:
+ *         description: Vectores con coordenadas, nivel de riesgo, estado y tipo
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success: { type: boolean }
+ *                 data:
+ *                   type: array
+ *                   items: { $ref: '#/components/schemas/HealthVector' }
+ *       401: { $ref: '#/components/responses/Unauthorized' }
+ */
 router.get('/vectors', mapController.vectors);
 
-// GET /map/zone/:id — all entities aggregated for a zone (AC3)
+/**
+ * @swagger
+ * /map/zone/{id}:
+ *   get:
+ *     tags: [Map]
+ *     summary: Datos agregados de una zona para mapa
+ *     parameters:
+ *       - $ref: '#/components/parameters/IdParam'
+ *     responses:
+ *       200:
+ *         description: Entidades agregadas de la zona (refugios, familias, bodegas, vectores)
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success: { type: boolean }
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     zone: { $ref: '#/components/schemas/Zone' }
+ *                     shelters:
+ *                       type: array
+ *                       items: { $ref: '#/components/schemas/Shelter' }
+ *                     families:
+ *                       type: array
+ *                       items: { $ref: '#/components/schemas/Family' }
+ *                     warehouses:
+ *                       type: array
+ *                       items: { $ref: '#/components/schemas/Warehouse' }
+ *       401: { $ref: '#/components/responses/Unauthorized' }
+ *       404: { $ref: '#/components/responses/NotFound' }
+ */
 router.get('/zone/:id', validate(idParamRule), mapController.zoneAggregate);
 
-// GET /map/recent-deliveries?days=7 — deliveries with coords in the last N days (AC4)
+/**
+ * @swagger
+ * /map/recent-deliveries:
+ *   get:
+ *     tags: [Map]
+ *     summary: Entregas recientes con coordenadas para mapa
+ *     parameters:
+ *       - in: query
+ *         name: days
+ *         schema: { type: integer, minimum: 1, default: 7 }
+ *         description: Número de días hacia atrás
+ *     responses:
+ *       200:
+ *         description: Entregas ENTREGADA de los últimos N días con coordenadas
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success: { type: boolean }
+ *                 data:
+ *                   type: array
+ *                   items: { $ref: '#/components/schemas/Delivery' }
+ *       401: { $ref: '#/components/responses/Unauthorized' }
+ */
 router.get('/recent-deliveries', validate(daysQueryRule), mapController.recentDeliveries);
 
-// GET /map/zones-without-deliveries?days=30 — zones with zero ENTREGADA deliveries (AC5)
+/**
+ * @swagger
+ * /map/zones-without-deliveries:
+ *   get:
+ *     tags: [Map]
+ *     summary: Zonas sin entregas ENTREGADA en los últimos N días
+ *     parameters:
+ *       - in: query
+ *         name: days
+ *         schema: { type: integer, minimum: 1, default: 30 }
+ *         description: Ventana de días a evaluar
+ *     responses:
+ *       200:
+ *         description: Zonas sin cobertura de entrega en el período
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success: { type: boolean }
+ *                 data:
+ *                   type: array
+ *                   items: { $ref: '#/components/schemas/Zone' }
+ *       401: { $ref: '#/components/responses/Unauthorized' }
+ */
 router.get(
   '/zones-without-deliveries',
   validate(daysQueryRule),

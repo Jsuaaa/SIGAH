@@ -3,8 +3,10 @@ import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
 import path from 'path';
+import swaggerUi from 'swagger-ui-express';
 import { NODE_ENV } from './config/env';
 import { errorHandler } from './middlewares/errorHandler.middleware';
+import { swaggerSpec } from './config/swagger';
 import authRoutes from './routes/auth.routes';
 import zonesRoutes from './routes/zones.routes';
 import sheltersRoutes from './routes/shelters.routes';
@@ -85,6 +87,13 @@ app.use('/api/v1/audit-logs', auditLogsRoutes);
 app.use('/api/v1/map', mapRoutes);
 app.use('/api/v1/reports', reportsRoutes);
 app.use('/api/v1/sync', syncRoutes);
+
+// API documentation (Swagger UI)
+app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
+  customSiteTitle: 'SIGAH API Docs',
+  swaggerOptions: { persistAuthorization: true },
+}));
+app.get('/api/docs.json', (_req, res) => res.json(swaggerSpec));
 
 // Global error handler (must be after all routes)
 app.use(errorHandler);
