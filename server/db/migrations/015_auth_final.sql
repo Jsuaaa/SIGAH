@@ -33,16 +33,18 @@ CREATE TYPE role AS ENUM (
 -- ============================================================
 -- PASO 3: Migrar la columna `users.role` al nuevo enum
 -- ============================================================
--- Primero convertir a TEXT para poder cambiar el tipo
+-- Quitar el DEFAULT viejo: usa role_old::'VIEWER' y no se puede castear a TEXT.
+ALTER TABLE users ALTER COLUMN role DROP DEFAULT;
+-- Convertir a TEXT para reescribir los valores con el mapeo nuevo.
 ALTER TABLE users ALTER COLUMN role TYPE TEXT;
--- Mapeo de valores viejos → nuevos
+-- Mapeo de valores viejos → nuevos.
 UPDATE users SET role = 'ADMIN'                   WHERE role = 'ADMIN';
 UPDATE users SET role = 'COORDINADOR_LOGISTICA'   WHERE role = 'COORDINATOR';
-UPDATE users SET role = 'OPERADOR_ENTREGAS'        WHERE role = 'OPERATOR';
-UPDATE users SET role = 'FUNCIONARIO_CONTROL'      WHERE role = 'VIEWER';
--- Aplicar el nuevo enum
+UPDATE users SET role = 'OPERADOR_ENTREGAS'       WHERE role = 'OPERATOR';
+UPDATE users SET role = 'FUNCIONARIO_CONTROL'     WHERE role = 'VIEWER';
+-- Aplicar el nuevo enum.
 ALTER TABLE users ALTER COLUMN role TYPE role USING role::role;
--- Actualizar el default
+-- Restaurar el DEFAULT con un valor válido del nuevo enum.
 ALTER TABLE users ALTER COLUMN role SET DEFAULT 'FUNCIONARIO_CONTROL';
 
 -- ============================================================
