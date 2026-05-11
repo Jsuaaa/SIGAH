@@ -45,9 +45,10 @@ beforeAll(async () => {
     });
 
   adminToken = sign('ADMIN');
-  coordinatorToken = sign('COORDINATOR');
-  operatorToken = sign('OPERATOR');
-  viewerToken = sign('VIEWER');
+  // Roles actualizados a los 6 valores finales del PDF (migración #9.1)
+  coordinatorToken = sign('COORDINADOR_LOGISTICA');
+  operatorToken = sign('CENSADOR');
+  viewerToken = sign('FUNCIONARIO_CONTROL');
 });
 
 // ---------------------------------------------------------------------------
@@ -344,7 +345,8 @@ describe('PUT /api/v1/families/:id', () => {
     expect(res.body.data.status).toBe('EN_REFUGIO');
   });
 
-  it('returns 403 when OPERATOR tries to update', async () => {
+  it('returns 403 when OPERADOR_ENTREGAS tries to update families', async () => {
+    const operadorEntregasToken = sign('OPERADOR_ENTREGAS');
     const zoneId = await createZone();
     const created = await request(app)
       .post('/api/v1/families')
@@ -353,7 +355,7 @@ describe('PUT /api/v1/families/:id', () => {
 
     const res = await request(app)
       .put(`/api/v1/families/${created.body.data.id}`)
-      .set('Authorization', `Bearer ${operatorToken}`)
+      .set('Authorization', `Bearer ${operadorEntregasToken}`)
       .send({ status: 'EVACUADO' });
 
     expect(res.status).toBe(403);

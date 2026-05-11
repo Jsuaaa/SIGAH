@@ -1,9 +1,9 @@
 /* eslint-disable no-console */
 // Seed runner.
 //
-// Phase 1: create the admin user via fn_users_create. The bcrypt hash is
-//          computed in Node, never in the database.
-// Phase 2: execute every db/seeds/*.sql in lexicographic order.
+// Fase 1: crea (o actualiza) el usuario admin con name='Administrador SIGAH'
+//         y password_must_change=true. El hash bcrypt se calcula en Node.
+// Fase 2: aplica cada archivo db/seeds/*.sql en orden lexicográfico.
 
 import bcrypt from 'bcrypt';
 import fs from 'fs';
@@ -18,15 +18,26 @@ async function seedAdminUser(): Promise<void> {
   const passwordHash = await bcrypt.hash(password, 10);
 
   try {
+    // Intentar crear; si ya existe (SH409) actualizar name/password_must_change
     const { rows } = await pool.query<{ email: string }>(
-      'SELECT email FROM fn_users_create($1, $2, $3::role)',
-      [ADMIN_EMAIL, passwordHash, 'ADMIN'],
+      'SELECT email FROM fn_users_create($1, $2, $3::role, $4)',
+      [ADMIN_EMAIL, passwordHash, 'ADMIN', 'Administrador SIGAH'],
     );
     console.log(`  ✓ admin user created: ${rows[0]?.email ?? ADMIN_EMAIL}`);
   } catch (err) {
-    // SH409 = email already exists. Idempotent: skip.
+    // SH409 = email ya existe. Actualizamos campos que añade la migración #9.1.
     if ((err as { code?: string }).code === 'SH409') {
-      console.log(`  · admin user already exists: ${ADMIN_EMAIL}`);
+      await pool.query(
+        `UPDATE users
+            SET name                 = $1,
+                password_hash        = $2,
+                password_must_change = true,
+                is_active            = true,
+                updated_at           = now()
+          WHERE email = $3`,
+        ['Administrador SIGAH', passwordHash, ADMIN_EMAIL],
+      );
+      console.log(`  · admin user updated: ${ADMIN_EMAIL}`);
     } else {
       throw err;
     }

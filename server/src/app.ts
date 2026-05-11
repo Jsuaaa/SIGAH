@@ -3,8 +3,10 @@ import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
 import path from 'path';
+import swaggerUi from 'swagger-ui-express';
 import { NODE_ENV } from './config/env';
 import { errorHandler } from './middlewares/errorHandler.middleware';
+import { swaggerSpec } from './config/swagger';
 import authRoutes from './routes/auth.routes';
 import zonesRoutes from './routes/zones.routes';
 import sheltersRoutes from './routes/shelters.routes';
@@ -13,6 +15,19 @@ import personsRoutes from './routes/persons.routes';
 import warehousesRoutes from './routes/warehouses.routes';
 import resourceTypesRoutes from './routes/resourceTypes.routes';
 import inventoryRoutes from './routes/inventory.routes';
+import alertThresholdsRoutes from './routes/alertThresholds.routes';
+import donorsRoutes from './routes/donors.routes';
+import donationsRoutes from './routes/donations.routes';
+import scoringConfigRoutes from './routes/scoringConfig.routes';
+import prioritizationRoutes from './routes/prioritization.routes';
+import deliveriesRoutes from './routes/deliveries.routes';
+import distributionPlansRoutes from './routes/distributionPlans.routes';
+import relocationsRoutes from './routes/relocations.routes';
+import healthVectorsRoutes from './routes/healthVectors.routes';
+import auditLogsRoutes from './routes/auditLogs.routes';
+import mapRoutes from './routes/map.routes';
+import reportsRoutes from './routes/reports.routes';
+import syncRoutes from './routes/sync.routes';
 
 const app = express();
 
@@ -59,6 +74,26 @@ app.use('/api/v1/persons', personsRoutes);
 app.use('/api/v1/warehouses', warehousesRoutes);
 app.use('/api/v1/resource-types', resourceTypesRoutes);
 app.use('/api/v1/inventory', inventoryRoutes);
+app.use('/api/v1/alert-thresholds', alertThresholdsRoutes);
+app.use('/api/v1/donors', donorsRoutes);
+app.use('/api/v1/donations', donationsRoutes);
+app.use('/api/v1/scoring-config', scoringConfigRoutes);
+app.use('/api/v1/prioritization', prioritizationRoutes);
+app.use('/api/v1/deliveries', deliveriesRoutes);
+app.use('/api/v1/distribution-plans', distributionPlansRoutes);
+app.use('/api/v1/relocations', relocationsRoutes);
+app.use('/api/v1/health-vectors', healthVectorsRoutes);
+app.use('/api/v1/audit-logs', auditLogsRoutes);
+app.use('/api/v1/map', mapRoutes);
+app.use('/api/v1/reports', reportsRoutes);
+app.use('/api/v1/sync', syncRoutes);
+
+// API documentation (Swagger UI)
+app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
+  customSiteTitle: 'SIGAH API Docs',
+  swaggerOptions: { persistAuthorization: true },
+}));
+app.get('/api/docs.json', (_req, res) => res.json(swaggerSpec));
 
 // Global error handler (must be after all routes)
 app.use(errorHandler);

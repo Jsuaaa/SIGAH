@@ -25,16 +25,19 @@ export const PRIORITY_WEIGHTS = {
 
 // Authentication
 export const JWT_EXPIRATION = '8h';
+export const FAILED_LOGIN_LIMIT = 5;        // AC #9.1 — bloqueo tras 5 fallos (HU-03)
+export const ACCOUNT_LOCK_MINUTES = 15;     // AC #9.1 — bloqueo de 15 min (HU-03)
+export const MIN_PASSWORD_LENGTH = 8;       // AC #9.1 — mínimo 8 chars (HU-03 CA3)
 
 // Sequential code prefixes
 export const CODE_PREFIXES = {
   FAMILY: 'FAM',
   DONATION: 'DON',
-  DELIVERY: 'DEL',
+  DELIVERY: 'ENT',   // AC #9.1 — RN-07 usa prefijo ENT
 } as const;
 
 // Inventory alerts
-export const WAREHOUSE_CAPACITY_ALERT_THRESHOLD = 0.9;
+export const WAREHOUSE_CAPACITY_ALERT_THRESHOLD = 0.85; // AC #9.1 — HU-11 CA3
 export const EXPIRATION_ALERT_DAYS = 7;
 
 // Pagination defaults
