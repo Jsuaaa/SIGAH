@@ -176,7 +176,26 @@ const router = createRouter({
           component: () => import('@/pages/settings/ScoringConfigPage.vue'),
           meta: { roles: ['ADMIN', 'COORDINADOR_LOGISTICA'] },
         },
-        // Las demas rutas (entregas, mapa, etc.) se agregan aqui
+        // Planes de distribución (HU-21).
+        {
+          path: 'distribution-plans',
+          name: 'distribution-plans',
+          component: () => import('@/pages/distributionPlans/DistributionPlansListPage.vue'),
+          meta: { roles: ['ADMIN', 'COORDINADOR_LOGISTICA'] },
+        },
+        {
+          path: 'distribution-plans/new',
+          name: 'distribution-plan-new',
+          component: () => import('@/pages/distributionPlans/DistributionPlanFormPage.vue'),
+          meta: { roles: ['ADMIN', 'COORDINADOR_LOGISTICA'] },
+        },
+        {
+          path: 'distribution-plans/:id',
+          name: 'distribution-plan-detail',
+          component: () => import('@/pages/distributionPlans/DistributionPlanDetailPage.vue'),
+          meta: { roles: ['ADMIN', 'COORDINADOR_LOGISTICA'] },
+        },
+        // Las demas rutas (mapa, etc.) se agregan aqui
         // a medida que se implementan las HU. Ver HistoriasDeUsuario.json.
       ],
     },
