@@ -214,6 +214,13 @@ const router = createRouter({
           name: 'map',
           component: () => import('@/pages/map/MapPage.vue'),
         },
+        // Reportes + trazabilidad (HU-27/28/29). RF-28: ADMIN/COORD/FUNCIONARIO_CONTROL.
+        {
+          path: 'reports',
+          name: 'reports',
+          component: () => import('@/pages/reports/ReportsPage.vue'),
+          meta: { roles: ['ADMIN', 'COORDINADOR_LOGISTICA', 'FUNCIONARIO_CONTROL'] },
+        },
         // Las demas rutas se agregan aqui a medida que se implementan las HU.
       ],
     },
