@@ -208,8 +208,13 @@ const router = createRouter({
           component: () => import('@/pages/relocations/RelocationsPage.vue'),
           meta: { roles: ['ADMIN', 'COORDINADOR_LOGISTICA'] },
         },
-        // Las demas rutas (mapa, etc.) se agregan aqui
-        // a medida que se implementan las HU. Ver HistoriasDeUsuario.json.
+        // Mapa operativo con capas (HU-13/26/30).
+        {
+          path: 'map',
+          name: 'map',
+          component: () => import('@/pages/map/MapPage.vue'),
+        },
+        // Las demas rutas se agregan aqui a medida que se implementan las HU.
       ],
     },
     {
