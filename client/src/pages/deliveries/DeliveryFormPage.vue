@@ -15,6 +15,7 @@ import type { DeliveryDetailInput, DeliveryPayload, ExceptionPayload } from '@/t
 import type { ResourceTypeListParams } from '@/types/inventory.types'
 import { FOOD_KG_PER_PERSON_DAY, MIN_COVERAGE_DAYS } from '@/utils/constants'
 import { apiErrorMessage } from '@/utils/apiError'
+import { useOfflineSync } from '@/composables/useOfflineSync'
 import PageHeader from '@/components/ui/PageHeader.vue'
 import AppButton from '@/components/ui/AppButton.vue'
 import FormField from '@/components/form/FormField.vue'
@@ -95,6 +96,7 @@ const isEligible = computed(() => eligibility.value?.is_eligible ?? true)
 const blockedByCoverage = computed(() => !isEligible.value && !exceptionMode.value)
 
 const { create, createException } = useDeliveryMutations()
+const offline = useOfflineSync()
 const saving = computed(() => create.isPending.value || createException.isPending.value)
 const clientOpId = ref(crypto.randomUUID())
 
@@ -148,8 +150,20 @@ async function submit() {
       toast.success(`Entrega ${created.delivery_code} creada con excepción`)
     } else {
       const payload: DeliveryPayload = { ...base, client_op_id: clientOpId.value }
-      const created = await create.mutateAsync({ payload, clientOpId: clientOpId.value })
-      toast.success(`Entrega ${created.delivery_code} registrada`)
+      // Entrega offline (HU-22 CA6): si no hay conexión, se guarda localmente.
+      const res = await offline.submit({
+        entity: 'delivery',
+        url: '/api/v1/deliveries',
+        payload,
+        clientOpId: clientOpId.value,
+        label: `Entrega · familia ${selectedFamily.value.family_code}`,
+        run: () => create.mutateAsync({ payload, clientOpId: clientOpId.value }),
+      })
+      if (res.status === 'sent') {
+        toast.success(`Entrega ${res.data.delivery_code} registrada`)
+      } else {
+        toast.success('Sin conexión: entrega guardada localmente. Se sincronizará al reconectar.')
+      }
     }
     router.push('/deliveries')
   } catch (e) {

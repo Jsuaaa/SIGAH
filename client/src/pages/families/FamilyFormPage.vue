@@ -11,6 +11,7 @@ import type { FamilyCreatePayload, FamilyStatus, FamilyUpdatePayload } from '@/t
 import { familyCreateSchema, familyEditSchema } from '@/schemas/family.schema'
 import { validate } from '@/utils/validation'
 import { apiErrorMessage } from '@/utils/apiError'
+import { useOfflineSync } from '@/composables/useOfflineSync'
 import PageHeader from '@/components/ui/PageHeader.vue'
 import AppButton from '@/components/ui/AppButton.vue'
 import SkeletonBlock from '@/components/ui/SkeletonBlock.vue'
@@ -29,6 +30,7 @@ const { data: family, isLoading: loadingFamily, isError: familyError } = useFami
 const { data: zones } = useZones()
 const { data: shelters } = useShelters()
 const { create, update } = useFamilyMutations()
+const offline = useOfflineSync()
 const saving = computed(() => create.isPending.value || update.isPending.value)
 
 // Clave de idempotencia estable por instancia del formulario: un reintento de un
@@ -161,9 +163,23 @@ async function submit() {
     privacy_consent_accepted: true,
   }
   try {
-    const created = await create.mutateAsync({ payload, clientOpId: clientOpId.value })
-    toast.success(`Familia ${created.family_code} registrada`)
-    router.push(`/families/${created.id}`)
+    // Censo offline (HU-04 CA5): si no hay conexión, se guarda localmente y se
+    // sincroniza al reconectar (dedup por client_op_id).
+    const res = await offline.submit({
+      entity: 'family',
+      url: '/api/v1/families',
+      payload,
+      clientOpId: clientOpId.value,
+      label: `Familia (doc ${payload.head_document})`,
+      run: () => create.mutateAsync({ payload, clientOpId: clientOpId.value }),
+    })
+    if (res.status === 'sent') {
+      toast.success(`Familia ${res.data.family_code} registrada`)
+      router.push(`/families/${res.data.id}`)
+    } else {
+      toast.success('Sin conexión: familia guardada localmente. Se sincronizará al reconectar.')
+      router.push('/families')
+    }
   } catch (e) {
     toast.error(apiErrorMessage(e, 'No se pudo registrar la familia. ¿El documento ya existe?'))
   }
