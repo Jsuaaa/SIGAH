@@ -18,16 +18,26 @@ export const useAuthStore = defineStore('auth', () => {
     localStorage.setItem(TOKEN_KEY, newToken)
   }
 
+  // Login: el backend devuelve solo el token; el perfil (rol, password_must_change)
+  // se obtiene con /auth/me. Devuelve el usuario cargado (o null si falla /me).
   async function login(payload: LoginPayload) {
-    const res = await authApi.login(payload)
-    setSession(res.token, res.user)
-    return res.user
+    const { token: newToken } = await authApi.login(payload)
+    token.value = newToken
+    localStorage.setItem(TOKEN_KEY, newToken)
+    return await fetchMe()
   }
 
   async function fetchMe() {
     if (!token.value) return null
     user.value = await authApi.me()
     return user.value
+  }
+
+  // Cambio de contraseña propio (HU-03). Tras el cambio el backend pone
+  // password_must_change=false; recargamos el perfil para reflejarlo.
+  async function changePassword(oldPassword: string, newPassword: string) {
+    await authApi.changePassword({ oldPassword, newPassword })
+    await fetchMe()
   }
 
   function logout() {
@@ -48,6 +58,7 @@ export const useAuthStore = defineStore('auth', () => {
     setSession,
     login,
     fetchMe,
+    changePassword,
     logout,
     hasRole,
   }
