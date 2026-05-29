@@ -81,6 +81,40 @@ const router = createRouter({
           component: () => import('@/pages/shelters/SheltersListPage.vue'),
           meta: { roles: ['ADMIN', 'COORDINADOR_LOGISTICA'] },
         },
+        // Logística — Bodegas e Inventario (HU-11/14/15/16/17).
+        {
+          path: 'warehouses',
+          name: 'warehouses',
+          component: () => import('@/pages/warehouses/WarehousesListPage.vue'),
+          meta: { roles: ['ADMIN', 'COORDINADOR_LOGISTICA'] },
+        },
+        {
+          path: 'warehouses/:id',
+          name: 'warehouse-detail',
+          component: () => import('@/pages/warehouses/WarehouseDetailPage.vue'),
+          meta: { roles: ['ADMIN', 'COORDINADOR_LOGISTICA'] },
+        },
+        {
+          path: 'inventory/summary',
+          name: 'inventory-summary',
+          component: () => import('@/pages/inventory/InventorySummaryPage.vue'),
+        },
+        {
+          path: 'inventory/resource-types',
+          name: 'resource-types',
+          component: () => import('@/pages/inventory/ResourceTypesPage.vue'),
+        },
+        {
+          path: 'inventory/alerts',
+          name: 'inventory-alerts',
+          component: () => import('@/pages/inventory/InventoryAlertsPage.vue'),
+        },
+        {
+          path: 'settings/alerts',
+          name: 'settings-alerts',
+          component: () => import('@/pages/settings/AlertThresholdsPage.vue'),
+          meta: { roles: ['ADMIN', 'COORDINADOR_LOGISTICA'] },
+        },
         // Las demas rutas (entregas, mapa, etc.) se agregan aqui
         // a medida que se implementan las HU. Ver HistoriasDeUsuario.json.
       ],

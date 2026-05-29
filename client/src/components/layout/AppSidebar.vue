@@ -12,10 +12,13 @@ import {
   Home,
   Warehouse,
   Package,
+  Boxes,
+  Bell,
   Truck,
   Activity,
   BarChart3,
   Settings,
+  SlidersHorizontal,
   ShieldCheck,
 } from '@lucide/vue'
 
@@ -59,6 +62,8 @@ const groups: NavGroup[] = [
     items: [
       { label: 'Bodegas', to: '/warehouses', icon: Warehouse, roles: ['ADMIN', 'COORDINADOR_LOGISTICA'] },
       { label: 'Inventario', to: '/inventory/summary', icon: Package },
+      { label: 'Tipos de Recurso', to: '/inventory/resource-types', icon: Boxes, roles: ['ADMIN', 'COORDINADOR_LOGISTICA'] },
+      { label: 'Alertas', to: '/inventory/alerts', icon: Bell },
     ],
   },
   {
@@ -82,6 +87,7 @@ const groups: NavGroup[] = [
     title: 'Configuración',
     items: [
       { label: 'Puntaje', to: '/settings/scoring', icon: Settings, roles: ['ADMIN', 'COORDINADOR_LOGISTICA'] },
+      { label: 'Umbrales', to: '/settings/alerts', icon: SlidersHorizontal, roles: ['ADMIN', 'COORDINADOR_LOGISTICA'] },
     ],
   },
   {
