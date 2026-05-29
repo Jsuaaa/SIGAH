@@ -141,11 +141,34 @@ const router = createRouter({
           component: () => import('@/pages/donations/DonationFormPage.vue'),
           meta: { roles: ['ADMIN', 'COORDINADOR_LOGISTICA', 'REGISTRADOR_DONACIONES'] },
         },
+        // Entregas (HU-22/23/12). Rutas estáticas antes de :id.
+        {
+          path: 'deliveries',
+          name: 'deliveries',
+          component: () => import('@/pages/deliveries/DeliveriesListPage.vue'),
+        },
+        {
+          path: 'deliveries/new',
+          name: 'delivery-new',
+          component: () => import('@/pages/deliveries/DeliveryFormPage.vue'),
+          meta: { roles: ['ADMIN', 'COORDINADOR_LOGISTICA', 'OPERADOR_ENTREGAS'] },
+        },
+        {
+          path: 'deliveries/batch',
+          name: 'delivery-batch',
+          component: () => import('@/pages/deliveries/DeliveryBatchPage.vue'),
+          meta: { roles: ['ADMIN', 'COORDINADOR_LOGISTICA'] },
+        },
         // Priorización (HU-08): ranking + editor de pesos del puntaje.
         {
           path: 'deliveries/ranking',
           name: 'ranking',
           component: () => import('@/pages/deliveries/RankingPage.vue'),
+        },
+        {
+          path: 'deliveries/:id',
+          name: 'delivery-detail',
+          component: () => import('@/pages/deliveries/DeliveryDetailPage.vue'),
         },
         {
           path: 'settings/scoring',
