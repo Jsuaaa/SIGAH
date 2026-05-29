@@ -8,6 +8,7 @@ import {
   LayoutDashboard,
   Map,
   Users,
+  UserSearch,
   Home,
   Warehouse,
   Package,
@@ -48,6 +49,7 @@ const groups: NavGroup[] = [
     title: 'Censo',
     items: [
       { label: 'Familias', to: '/families', icon: Users },
+      { label: 'Buscar Personas', to: '/persons/search', icon: UserSearch },
       { label: 'Zonas', to: '/zones', icon: Home, roles: ['ADMIN', 'COORDINADOR_LOGISTICA'] },
       { label: 'Refugios', to: '/shelters', icon: Home, roles: ['ADMIN', 'COORDINADOR_LOGISTICA'] },
     ],

@@ -36,11 +36,24 @@ const router = createRouter({
           path: 'families/new',
           name: 'family-new',
           component: () => import('@/pages/families/FamilyFormPage.vue'),
+          meta: { roles: ['ADMIN', 'COORDINADOR_LOGISTICA', 'CENSADOR'] },
         },
         {
           path: 'families/:id',
           name: 'family-detail',
           component: () => import('@/pages/families/FamilyDetailPage.vue'),
+        },
+        {
+          path: 'families/:id/edit',
+          name: 'family-edit',
+          component: () => import('@/pages/families/FamilyFormPage.vue'),
+          meta: { roles: ['ADMIN', 'COORDINADOR_LOGISTICA', 'CENSADOR'] },
+        },
+        // Búsqueda de personas por documento (HU-06).
+        {
+          path: 'persons/search',
+          name: 'person-search',
+          component: () => import('@/pages/persons/PersonSearchPage.vue'),
         },
         // Zonas (HU-09) y Refugios (HU-10): CRUD restringido a ADMIN/COORDINADOR.
         {
