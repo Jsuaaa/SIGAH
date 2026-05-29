@@ -1,1 +1,169 @@
 @import "tailwindcss";
+
+/* ============================================================
+   SIGAH · Design tokens (espejo de tokens.css del sistema de diseño).
+   En Tailwind 4 cada token de @theme genera utilidades (bg-primary-600,
+   text-neutral-500, rounded-lg, shadow-md, text-lg...) y queda expuesto
+   como variable CSS (var(--color-primary-600)) para CSS a medida.
+   ============================================================ */
+@theme {
+  /* ---- Primario · Azul institucional ---- */
+  --color-primary-50: #f0f5fb;
+  --color-primary-100: #dbe8f6;
+  --color-primary-200: #b7d0ec;
+  --color-primary-300: #8db2de;
+  --color-primary-400: #4f86c6;
+  --color-primary-500: #2e6ab0;
+  --color-primary-600: #1e5ba8; /* marca */
+  --color-primary-700: #194d8c;
+  --color-primary-800: #163f70;
+  --color-primary-900: #13315a;
+
+  /* ---- Acento · Teal-verde ---- */
+  --color-accent-50: #ecfaf5;
+  --color-accent-100: #cff0e6;
+  --color-accent-200: #a3e3d0;
+  --color-accent-300: #6bccb3;
+  --color-accent-400: #2fa98b;
+  --color-accent-500: #138a70;
+  --color-accent-600: #0e7c66; /* acento */
+  --color-accent-700: #0b6353;
+  --color-accent-800: #0a4f43;
+  --color-accent-900: #083f36;
+
+  /* ---- Neutros · Slate ---- */
+  --color-neutral-0: #ffffff;
+  --color-neutral-50: #f8fafc;
+  --color-neutral-100: #f1f5f9;
+  --color-neutral-200: #e2e8f0;
+  --color-neutral-300: #cbd5e1;
+  --color-neutral-400: #94a3b8;
+  --color-neutral-500: #64748b;
+  --color-neutral-600: #475569;
+  --color-neutral-700: #334155;
+  --color-neutral-800: #1e293b;
+  --color-neutral-900: #0f172a;
+
+  /* ---- Semánticos ---- */
+  --color-success: #15803d;
+  --color-success-bg: #f0fdf4;
+  --color-success-br: #bbf7d0;
+  --color-warning: #b45309; /* alerta-85% ámbar */
+  --color-warning-bg: #fffbeb;
+  --color-warning-br: #fde68a;
+  --color-danger: #b91c1c;
+  --color-danger-bg: #fef2f2;
+  --color-danger-br: #fecaca;
+  --color-info: #1e5ba8;
+  --color-info-bg: #f0f5fb;
+  --color-info-br: #b7d0ec;
+
+  /* ---- Niveles de riesgo (zonas / vectores) ---- */
+  --color-risk-low: #15803d;
+  --color-risk-low-bg: #f0fdf4;
+  --color-risk-medium: #b45309;
+  --color-risk-medium-bg: #fffbeb;
+  --color-risk-high: #c2410c;
+  --color-risk-high-bg: #fff7ed;
+  --color-risk-critical: #b91c1c;
+  --color-risk-critical-bg: #fef2f2;
+
+  /* ---- Estados de entrega ---- */
+  --color-state-programada: #475569;
+  --color-state-encurso: #1e5ba8;
+  --color-state-entregada: #15803d;
+
+  /* ---- Tipografía ---- */
+  --font-sans: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+
+  --text-xs: 0.75rem;
+  --text-sm: 0.875rem;
+  --text-base: 1rem;
+  --text-lg: 1.125rem;
+  --text-xl: 1.375rem;
+  --text-2xl: 1.75rem;
+  --text-3xl: 2.25rem;
+  --text-4xl: 3rem;
+
+  --leading-tight: 1.2;
+  --leading-snug: 1.4;
+  --leading-normal: 1.6;
+
+  /* ---- Radios (diseño: 6/8/12/16) ---- */
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+
+  /* ---- Sombras (sutiles, institucionales) ---- */
+  --shadow-xs: 0 1px 2px rgba(15, 23, 42, 0.06);
+  --shadow-sm: 0 1px 3px rgba(15, 23, 42, 0.08), 0 1px 2px rgba(15, 23, 42, 0.04);
+  --shadow-md: 0 4px 12px rgba(15, 23, 42, 0.08), 0 2px 4px rgba(15, 23, 42, 0.04);
+  --shadow-lg: 0 12px 28px rgba(15, 23, 42, 0.12), 0 4px 8px rgba(15, 23, 42, 0.05);
+}
+
+/* Tokens que no mapean a utilidades de Tailwind (uso vía var() o bg-[var(--..)]) */
+:root {
+  --ring-focus: 0 0 0 3px rgba(30, 91, 168, 0.35);
+  --control-min: 44px; /* touch target; en Tailwind usar min-h-11 */
+}
+
+/* ---- Base ---- */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: var(--text-base);
+  line-height: var(--leading-normal);
+  color: var(--color-neutral-800);
+  background: var(--color-neutral-100);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+h1,
+h2,
+h3,
+h4 {
+  line-height: var(--leading-tight);
+  color: var(--color-neutral-900);
+}
+
+/* Foco siempre visible (accesibilidad AA) */
+:focus-visible {
+  outline: none;
+  box-shadow: var(--ring-focus);
+  border-radius: var(--radius-sm);
+}
+
+/* Control de formulario reutilizable (input/select/textarea). Refleja .control
+   del sistema de diseño; usar como <input class="control" /> dentro de FormField. */
+@layer components {
+  .control {
+    @apply min-h-11 w-full rounded-md border border-neutral-300 bg-white px-4 text-base text-neutral-900 transition-colors;
+  }
+  .control::placeholder {
+    @apply text-neutral-400;
+  }
+  .control:focus {
+    @apply border-primary-500;
+    outline: none;
+    box-shadow: var(--ring-focus);
+  }
+  textarea.control {
+    @apply min-h-24 resize-y py-3 leading-snug;
+  }
+  select.control {
+    @apply cursor-pointer appearance-none pr-10;
+  }
+}

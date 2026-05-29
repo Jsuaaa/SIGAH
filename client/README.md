@@ -1,73 +1,50 @@
-# React + TypeScript + Vite
+# SIGAH — Client (Vue 3)
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+SPA mobile-first / PWA del monolito SIGAH. Consume la API REST en `/api/v1`.
 
-Currently, two official plugins are available:
+## Stack
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+- **Vue 3.5** (Composition API, `<script setup lang="ts">`) + **Vite 8** + **TypeScript strict**
+- **Vue Router** (layouts + guards) · **Pinia** (auth + sync)
+- **@tanstack/vue-query** (estado servidor) · **VeeValidate + Zod** (formularios)
+- **Tailwind CSS 4** · **@headlessui/vue** · **lucide-vue-next** · **vue-sonner**
+- **@tanstack/vue-table** · **vue-chartjs** (Chart.js) · **@vue-leaflet/vue-leaflet** (mapas)
+- **Axios** (interceptor JWT, 401, `Idempotency-Key`)
 
-## React Compiler
+## Scripts
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+pnpm dev        # Vite dev server (5173), proxy /api -> :3000
+pnpm build      # vue-tsc -b && vite build (genera dist/)
+pnpm preview    # Previsualiza el build
+pnpm lint       # ESLint
+pnpm typecheck  # vue-tsc -b
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+Desde la raíz del monolito: `pnpm dev` levanta server (3000) + client (5173) concurrentes.
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+## Estructura
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
 ```
+src/
+├── main.ts                 # createApp + pinia + router + vue-query
+├── App.vue                 # <RouterView/> + <Toaster/>
+├── index.css               # Tailwind + design tokens (@theme)
+├── router/                 # Rutas + guards (auth, password_must_change)
+├── stores/                 # Pinia: auth, sync (reemplaza React Context)
+├── composables/            # Lógica reutilizable (useConnection, vue-query wrappers)
+├── api/                    # Axios + módulos por dominio (auth.api, ...)
+├── types/                  # Tipos compartidos
+├── schemas/                # Esquemas Zod
+├── utils/                  # constants, formatters, mapConfig, rolePermissions
+├── lib/                    # queryClient, leafletSetup, offlineQueue (Dexie), syncManager
+├── components/
+│   ├── layout/             # AppLayout, AppNavbar, AppSidebar, ConnectionBadge
+│   ├── ui/                 # DataTable, KpiCard, StatusBadge, ScoreBreakdown...
+│   ├── form/               # FormField, MapPicker, PrivacyConsentCheckbox...
+│   ├── map/                # MapContainer, LayerToggle, ZonesHighlight...
+│   └── auth/               # RoleGate, guards de UI
+└── pages/                  # Una carpeta por módulo (ver HistoriasDeUsuario.json)
+```
+
+> Las pantallas y componentes pendientes están guiados por `HistoriasDeUsuario.json` (raíz del repo) y el prompt de diseño.

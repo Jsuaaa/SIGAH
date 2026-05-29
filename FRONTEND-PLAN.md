@@ -1,5 +1,9 @@
 # SIGAH Frontend Plan
 
+> ⚠️ **OBSOLETO / React.** El frontend de SIGAH se desarrolla en **Vue 3**.
+> Este documento describe el stack React original y se conserva solo como referencia histórica.
+> **Fuente de verdad actual: [`FRONTEND-PLAN-VUE.md`](./FRONTEND-PLAN-VUE.md).**
+
 ## Context
 
 El frontend es una **SPA React mobile-first y PWA offline-capable** que vive en el monolito bajo `SIGAH/client/` y consume la API definida en PLAN.md (18 módulos, 22 tablas, 44 RF, 10 RN, 31 HU). El 90% del trabajo de campo se hace desde smartphone, por lo que la experiencia móvil es prioritaria. El sistema debe funcionar con conectividad pobre o nula: censo y entregas se guardan localmente en IndexedDB y se sincronizan al recuperar conexión.

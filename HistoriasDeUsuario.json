@@ -1,0 +1,1198 @@
+{
+  "version_documento": "1.0",
+  "proyecto": "SIGAH - Sistema de Gestion y Distribucion de Ayudas Humanitarias (Monteria 2026)",
+  "descripcion": "Backlog de Historias de Usuario (31 HU canonicas) mapeadas a los endpoints reales de la API (/api/v1, 18 modulos). Sirve como guia para el desarrollo del frontend en Vue. El backend de los 18 modulos ya esta implementado (Express + PostgreSQL + Stored Procedures); el campo status refleja el avance del frontend.",
+  "generado": "2026-05-28",
+  "api_base_url": "/api/v1",
+  "stack_frontend": {
+    "framework": "Vue 3.5 (Composition API, script setup lang=ts)",
+    "build": "Vite 8",
+    "lenguaje": "TypeScript strict",
+    "router": "Vue Router 4 (layouts anidados + route guards)",
+    "estado_servidor": "@tanstack/vue-query (caching, persistencia, reintentos offline)",
+    "estado_cliente": "Pinia (auth + sync, en vez de React Context)",
+    "estilos": "Tailwind CSS 4 (utility-first, mobile-first)",
+    "ui_accesible": "@headlessui/vue (modales, dropdowns, combobox)",
+    "formularios": "VeeValidate + Zod (validacion type-safe)",
+    "tablas": "@tanstack/vue-table (headless sort/paginacion)",
+    "graficos": "vue-chartjs (Chart.js) o vue-echarts",
+    "mapas": "@vue-leaflet/vue-leaflet + Leaflet (OSM, clustering)",
+    "http": "Axios (interceptor JWT, manejo 401, header Idempotency-Key)",
+    "iconos": "lucide-vue-next",
+    "toasts": "vue-sonner",
+    "fechas": "date-fns",
+    "pwa": "vite-plugin-pwa + workbox-window (Service Worker, manifest, offline shell)",
+    "offline": "Dexie (IndexedDB) para cola de operaciones offline",
+    "exports": "jspdf + jspdf-autotable, xlsx, file-saver"
+  },
+  "nota_stack": "El client/ del repositorio fue scaffoldeado originalmente con React y el FRONTEND-PLAN.md esta escrito para React; al adoptar Vue es necesario re-scaffoldear client/ con Vue 3 + Vite y traducir el plan. Rutas, endpoints, reglas de negocio y criterios de aceptacion de estas HU son agnosticos al framework. Los detalles especificos de Vue viven en mejores_practicas y en stack_frontend.",
+  "roles": {
+    "ADMIN": "Administrador del sistema. Acceso total, gestiona usuarios.",
+    "CENSADOR": "Registra familias, personas y traslados en terreno (offline).",
+    "OPERADOR_ENTREGAS": "Registra entregas individuales y consulta reportes.",
+    "COORDINADOR_LOGISTICA": "Configura, planifica distribucion, ajusta inventario, autoriza excepciones.",
+    "FUNCIONARIO_CONTROL": "Consulta y supervisa: auditoria, reportes, dashboard.",
+    "REGISTRADOR_DONACIONES": "Registra donantes, donaciones y tipos de recurso."
+  },
+  "leyenda_status": {
+    "backend": ["completado", "parcial", "pendiente"],
+    "frontend": ["pendiente", "en_progreso", "en_revision", "hecho", "bloqueado"]
+  },
+  "leyenda_prioridad": {
+    "P0": "Fundacional / bloquea el resto (auth, censo, inventario base).",
+    "P1": "Operacion core (entregas, donaciones, planes, mapa).",
+    "P2": "Analitica y control (reportes, dashboard, auditoria, salubridad)."
+  },
+  "reglas_negocio": {
+    "RN-01": "Cobertura minima de 3 dias por entrega (0,6 kg/persona/dia de alimentos).",
+    "RN-02": "Prevencion de duplicidad: no entregar a familia con cobertura vigente, salvo excepcion autorizada por COORDINADOR_LOGISTICA.",
+    "RN-03": "Capacidad de bodega: current_weight_kg no supera max_capacity_kg. Alerta al 85%, bloqueo al 100%.",
+    "RN-04": "Priorizacion configurable mediante pesos editables en scoring_config.",
+    "RN-05": "Descuento automatico de inventario al confirmar entrega (misma transaccion).",
+    "RN-06": "Trazabilidad completa donante -> bodega -> entrega -> familia.",
+    "RN-07": "Codigos secuenciales FAM/DON/ENT/PLN-2026-NNNNN.",
+    "RN-08": "Recalculo de prioridad al crear entrega, cambiar composicion o por peticion manual.",
+    "RN-09": "Aviso de privacidad (Ley 1581/2012): toda creacion de familia exige consentimiento.",
+    "RN-10": "Ubicacion requerida (lat/lng NOT NULL) en refugios y bodegas; opcional en familias."
+  },
+  "requisitos_no_funcionales": {
+    "RNF-01": "Un voluntario debe aprender a usar la app en menos de 1 hora (mobile-first).",
+    "RNF-04": "Busqueda de familias responde en menos de 2s con 12.000 registros.",
+    "RNF-09": "Historial de auditoria inmutable (sin UPDATE/DELETE)."
+  },
+  "convenciones_codigos": "FAM-2026-NNNNN (familias), DON-2026-NNNNN (donaciones), ENT/DEL-2026-NNNNN (entregas), PLN-2026-NNNNN (planes).",
+  "resumen": {
+    "total_hu": 31,
+    "backend_completado": 31,
+    "frontend_pendiente": 31,
+    "frontend_hecho": 0
+  },
+  "historias": [
+    {
+      "id": "HU-01",
+      "titulo": "Gestionar usuarios",
+      "modulo": "Auth",
+      "epica": "Seguridad y acceso",
+      "historia_usuario": "Como ADMIN, quiero registrar, editar el rol, activar/desactivar y resetear la contrasena de los usuarios, para controlar quien accede al sistema y con que permisos.",
+      "descripcion": "Pantalla de administracion de usuarios visible solo para ADMIN. Lista paginada con nombre, email, rol, estado, ultimo acceso y acciones. El alta genera una contrasena temporal y marca password_must_change=true. No existe eliminacion fisica: los usuarios se desactivan.",
+      "criterios_aceptacion": [
+        "El menu Usuarios y la pantalla solo son accesibles para ADMIN.",
+        "El alta permite elegir uno de los 6 roles y genera contrasena temporal (password_must_change=true).",
+        "Se puede activar/desactivar y resetear contrasena, pero NO eliminar usuarios.",
+        "La lista muestra ultimo acceso y estado activo/inactivo, con paginacion."
+      ],
+      "endpoints": [
+        { "metodo": "GET", "path": "/auth/users", "descripcion": "Listar usuarios (paginado: page, limit)." },
+        { "metodo": "POST", "path": "/auth/register", "descripcion": "Registrar usuario (genera contrasena temporal)." },
+        { "metodo": "PUT", "path": "/auth/users/:id", "descripcion": "Editar rol / activar / desactivar." },
+        { "metodo": "POST", "path": "/auth/reset-password/:userId", "descripcion": "Asignar nueva contrasena temporal." }
+      ],
+      "frontend": {
+        "rutas": ["/users"],
+        "pagina": "UsersPage.vue",
+        "componentes_clave": ["DataTable", "ConfirmDialog", "RoleBadge", "StatusBadge", "FormField", "SelectField"]
+      },
+      "roles": ["ADMIN"],
+      "reglas_negocio": ["RN-07"],
+      "requisitos_no_funcionales": [],
+      "mejores_practicas": [
+        "Ocultar (no deshabilitar) el item de menu y la ruta para roles distintos de ADMIN mediante guard de Vue Router + Pinia auth.",
+        "Mostrar la contrasena temporal generada en un dialog copiable una sola vez; nunca registrarla en logs.",
+        "Usar mutaciones de vue-query con invalidacion de la query de usuarios e indicador optimista de estado.",
+        "Confirmar activar/desactivar con ConfirmDialog; nunca exponer un boton de eliminar."
+      ],
+      "dependencias": ["HU-02"],
+      "prioridad": "P0",
+      "paso_plan": 5,
+      "status": { "backend": "completado", "frontend": "pendiente" }
+    },
+    {
+      "id": "HU-02",
+      "titulo": "Iniciar sesion segun rol",
+      "modulo": "Auth",
+      "epica": "Seguridad y acceso",
+      "historia_usuario": "Como usuario del sistema, quiero iniciar sesion con email y contrasena, para acceder a las funciones que corresponden a mi rol.",
+      "descripcion": "Pantalla de login a pantalla completa sin navbar/sidebar. Tras 5 intentos fallidos la cuenta se bloquea (locked_until) y se muestra cuenta regresiva. Si password_must_change es true, se fuerza el flujo de cambio antes de llegar al dashboard. El JWT (8h) se guarda en el cliente.",
+      "criterios_aceptacion": [
+        "Login valido devuelve JWT y redirige al dashboard correspondiente al rol.",
+        "Tras 5 intentos fallidos la cuenta se bloquea 15 minutos y se muestra cuenta regresiva (HU-02 CA5).",
+        "Un usuario desactivado no puede iniciar sesion.",
+        "Si password_must_change=true, redirige obligatoriamente a /change-password antes del dashboard."
+      ],
+      "endpoints": [
+        { "metodo": "POST", "path": "/auth/login", "descripcion": "Login publico con lockout tras 5 intentos." },
+        { "metodo": "GET", "path": "/auth/me", "descripcion": "Perfil del usuario autenticado (incluye role y password_must_change)." }
+      ],
+      "frontend": {
+        "rutas": ["/login"],
+        "pagina": "LoginPage.vue",
+        "componentes_clave": ["FormField", "Card", "CountdownTimer"]
+      },
+      "roles": ["TODOS"],
+      "reglas_negocio": [],
+      "requisitos_no_funcionales": ["RNF-01"],
+      "mejores_practicas": [
+        "Interceptor Axios: adjunta Authorization Bearer y maneja 401 global (logout + redirect a /login).",
+        "No revelar si el email existe o no; mensaje de error generico.",
+        "Mostrar la cuenta regresiva de lockout calculada desde locked_until y deshabilitar el submit mientras dure.",
+        "Guardar el JWT y derivar el usuario en un store Pinia (useAuthStore); hidratar al arrancar la app.",
+        "Mobile-first: card centrado, inputs grandes (touch target >=44px)."
+      ],
+      "dependencias": [],
+      "prioridad": "P0",
+      "paso_plan": 5,
+      "status": { "backend": "completado", "frontend": "pendiente" }
+    },
+    {
+      "id": "HU-03",
+      "titulo": "Cambiar contrasena propia",
+      "modulo": "Auth",
+      "epica": "Seguridad y acceso",
+      "historia_usuario": "Como usuario autenticado, quiero cambiar mi contrasena, para mantener la seguridad de mi cuenta y poder reemplazar la contrasena temporal.",
+      "descripcion": "Formulario de cambio de contrasena (actual, nueva, confirmar) con minimo 8 caracteres. Es obligatorio cuando password_must_change=true, bloqueando el acceso al resto de la app hasta completarlo.",
+      "criterios_aceptacion": [
+        "La nueva contrasena exige minimo 8 caracteres (HU-03 CA3) y confirmacion coincidente.",
+        "Es obligatorio cuando password_must_change=true; no se puede saltar.",
+        "Tras el cambio exitoso, password_must_change pasa a false y se permite el acceso normal."
+      ],
+      "endpoints": [
+        { "metodo": "PUT", "path": "/auth/change-password", "descripcion": "Cambia la contrasena del usuario autenticado." }
+      ],
+      "frontend": {
+        "rutas": ["/change-password"],
+        "pagina": "ChangePasswordPage.vue",
+        "componentes_clave": ["FormField", "PasswordChangeGuard"]
+      },
+      "roles": ["TODOS"],
+      "reglas_negocio": [],
+      "requisitos_no_funcionales": [],
+      "mejores_practicas": [
+        "Validar con Zod (min 8) y comparar nueva vs confirmar en el cliente antes de enviar.",
+        "Guard global de Vue Router (PasswordChangeGuard) que fuerza /change-password mientras password_must_change sea true.",
+        "Tras exito, refrescar el perfil (GET /auth/me) y limpiar el flag en el store antes de redirigir."
+      ],
+      "dependencias": ["HU-02"],
+      "prioridad": "P0",
+      "paso_plan": 5,
+      "status": { "backend": "completado", "frontend": "pendiente" }
+    },
+    {
+      "id": "HU-04",
+      "titulo": "Registrar familia en terreno (offline)",
+      "modulo": "Families",
+      "epica": "Censo poblacional",
+      "historia_usuario": "Como CENSADOR, quiero registrar una familia desde el celular incluso sin conexion, para censar a las personas afectadas en terreno y sincronizar al recuperar la red.",
+      "descripcion": "Formulario mobile-first de alta de familia con codigo automatico, documento del representante, zona, refugio opcional, estado, composicion (miembros, ninos<5, adultos>65, gestantes, discapacitados) y ubicacion opcional con mapa. Requiere aceptar el aviso de privacidad. Funciona offline: se guarda en IndexedDB con client_op_id y se sincroniza al reconectar.",
+      "criterios_aceptacion": [
+        "No permite guardar si el checkbox de consentimiento (Ley 1581/2012) no esta marcado (RN-09).",
+        "El codigo FAM se asigna automaticamente (RN-07).",
+        "Offline (HU-04 CA4-5): el registro se guarda localmente y muestra toast 'Guardado localmente, se sincronizara'.",
+        "Al reconectar se sincroniza con Idempotency-Key (client_op_id) sin duplicar."
+      ],
+      "endpoints": [
+        { "metodo": "POST", "path": "/families", "descripcion": "Crea familia + consentimiento (exige privacy_consent_accepted=true)." }
+      ],
+      "frontend": {
+        "rutas": ["/families/new"],
+        "pagina": "FamilyFormPage.vue",
+        "componentes_clave": ["FormField", "SelectField", "MapPicker", "PrivacyConsentCheckbox", "OfflineIndicator"]
+      },
+      "roles": ["ADMIN", "CENSADOR", "COORDINADOR_LOGISTICA"],
+      "reglas_negocio": ["RN-07", "RN-09", "RN-10"],
+      "requisitos_no_funcionales": ["RNF-01"],
+      "mejores_practicas": [
+        "PrivacyConsentCheckbox obligatorio con enlace al texto; deshabilitar submit si no esta marcado (validacion Zod).",
+        "Encolar la mutacion en Dexie con client_op_id (uuid) cuando navigator.onLine es false; al reconectar, flush FIFO con header Idempotency-Key.",
+        "Mapa arrastrable opcional (MapPicker) centrado en Monteria; la familia puede no tener coordenadas.",
+        "Formulario por secciones colapsables para pantalla pequena; inputs numericos con teclado numerico.",
+        "Mostrar el estado de la cola pendiente en el ConnectionBadge del navbar."
+      ],
+      "dependencias": ["HU-09", "HU-10"],
+      "prioridad": "P0",
+      "paso_plan": 7,
+      "status": { "backend": "completado", "frontend": "pendiente" }
+    },
+    {
+      "id": "HU-05",
+      "titulo": "Registrar personas en familia",
+      "modulo": "Persons",
+      "epica": "Censo poblacional",
+      "historia_usuario": "Como CENSADOR, quiero agregar, editar o eliminar los miembros de una familia, para mantener actualizada su composicion y que el puntaje de prioridad se recalcule.",
+      "descripcion": "Gestion de miembros dentro del detalle de familia (tab Miembros): nombre, documento unico, fecha de nacimiento, genero, parentesco, condiciones especiales y si requiere medicacion. Los cambios de composicion recalculan automaticamente el priority_score (RN-08). No se puede eliminar el ultimo miembro.",
+      "criterios_aceptacion": [
+        "Alta/edicion de miembro con documento unico y parentesco (SPOUSE/CHILD/PARENT/SIBLING/OTHER).",
+        "Cambios en la composicion recalculan priority_score automaticamente (RN-08).",
+        "No permite eliminar al ultimo miembro de la familia (el backend lo bloquea)."
+      ],
+      "endpoints": [
+        { "metodo": "GET", "path": "/families/:id/persons", "descripcion": "Lista miembros de la familia." },
+        { "metodo": "POST", "path": "/persons", "descripcion": "Crea miembro y recalcula puntaje." },
+        { "metodo": "PUT", "path": "/persons/:id", "descripcion": "Edita miembro y recalcula puntaje." },
+        { "metodo": "DELETE", "path": "/persons/:id", "descripcion": "Elimina miembro (bloqueado si es el ultimo)." }
+      ],
+      "frontend": {
+        "rutas": ["/families/:id"],
+        "pagina": "FamilyDetailPage.vue",
+        "componentes_clave": ["DataTable", "FormField", "MultiSelectField", "ConfirmDialog"]
+      },
+      "roles": ["ADMIN", "CENSADOR", "COORDINADOR_LOGISTICA"],
+      "reglas_negocio": ["RN-08"],
+      "requisitos_no_funcionales": [],
+      "mejores_practicas": [
+        "Tras crear/editar/eliminar miembro, invalidar tanto la query de personas como la de la familia para refrescar el puntaje recalculado.",
+        "condiciones_especiales como multiselect y requires_medication como toggle.",
+        "Capturar el error de 'ultimo miembro' (SH422) y mostrar mensaje claro en vez de un error generico."
+      ],
+      "dependencias": ["HU-04"],
+      "prioridad": "P0",
+      "paso_plan": 7,
+      "status": { "backend": "completado", "frontend": "pendiente" }
+    },
+    {
+      "id": "HU-06",
+      "titulo": "Consultar y buscar familias",
+      "modulo": "Families",
+      "epica": "Censo poblacional",
+      "historia_usuario": "Como usuario operativo, quiero buscar familias por codigo, documento o direccion y filtrarlas, para localizar rapidamente a quien necesito atender.",
+      "descripcion": "Listado paginado de familias con busqueda unificada (codigo FAM / documento del representante / direccion) y filtros por zona, estado y refugio. Columnas con codigo, documento, zona, refugio, miembros, ninos<5, puntaje, estado y ultima entrega. La busqueda debe responder en menos de 2s con 12.000 registros.",
+      "criterios_aceptacion": [
+        "Busqueda unificada por family_code, head_document o reference_address (HU-06 CA1).",
+        "Filtros por zona, estado (ACTIVE/IN_SHELTER/EVACUATED) y refugio.",
+        "Respuesta de busqueda en menos de 2s con 12.000 familias (RNF-04).",
+        "Paginacion de 20 por pagina."
+      ],
+      "endpoints": [
+        { "metodo": "GET", "path": "/families", "descripcion": "Lista con filtros: q, zone_id, status, shelter_id, page, limit." },
+        { "metodo": "GET", "path": "/families/search", "descripcion": "Busqueda unificada por q (codigo/documento/direccion)." },
+        { "metodo": "GET", "path": "/families/:id", "descripcion": "Detalle de familia (incluye priority_score_breakdown)." }
+      ],
+      "frontend": {
+        "rutas": ["/families", "/families/:id"],
+        "pagina": "FamiliesListPage.vue",
+        "componentes_clave": ["DataTable", "SearchInput", "FilterBar", "StatusBadge", "ScoreBreakdown"]
+      },
+      "roles": ["ADMIN", "CENSADOR", "COORDINADOR_LOGISTICA", "OPERADOR_ENTREGAS", "FUNCIONARIO_CONTROL"],
+      "reglas_negocio": [],
+      "requisitos_no_funcionales": ["RNF-04"],
+      "mejores_practicas": [
+        "Debounce de ~300ms en la busqueda y paginacion server-side (no traer 12.000 filas al cliente).",
+        "Cache con @tanstack/vue-query con keepPreviousData para evitar parpadeo al paginar/filtrar.",
+        "Persistir los filtros en query params de la URL para que sean compartibles y sobrevivan al refresh.",
+        "Lecturas disponibles desde cache offline con indicador 'Datos locales, pueden estar desactualizados'."
+      ],
+      "dependencias": ["HU-04"],
+      "prioridad": "P0",
+      "paso_plan": 7,
+      "status": { "backend": "completado", "frontend": "pendiente" }
+    },
+    {
+      "id": "HU-07",
+      "titulo": "Actualizar familia",
+      "modulo": "Families",
+      "epica": "Censo poblacional",
+      "historia_usuario": "Como CENSADOR, quiero editar los datos de una familia o desactivarla, para mantener el censo veraz y actualizado.",
+      "descripcion": "Edicion de los datos basicos y de composicion de una familia reutilizando el formulario de alta en modo edicion. Los cambios relevantes disparan el recalculo de prioridad en el backend.",
+      "criterios_aceptacion": [
+        "El formulario de edicion precarga los datos actuales de la familia.",
+        "Guardar actualiza la familia y, si cambia la composicion, recalcula el puntaje (RN-08).",
+        "Se respeta el aviso de privacidad ya aceptado (no se vuelve a exigir en edicion)."
+      ],
+      "endpoints": [
+        { "metodo": "PUT", "path": "/families/:id", "descripcion": "Actualiza la familia." },
+        { "metodo": "DELETE", "path": "/families/:id", "descripcion": "Desactiva/elimina segun politica del backend." }
+      ],
+      "frontend": {
+        "rutas": ["/families/:id/edit"],
+        "pagina": "FamilyFormPage.vue",
+        "componentes_clave": ["FormField", "SelectField", "MapPicker", "ConfirmDialog"]
+      },
+      "roles": ["ADMIN", "CENSADOR", "COORDINADOR_LOGISTICA"],
+      "reglas_negocio": ["RN-08"],
+      "requisitos_no_funcionales": [],
+      "mejores_practicas": [
+        "Reutilizar el mismo componente de formulario para alta y edicion mediante una prop de modo.",
+        "Mutacion optimista con rollback si falla; invalidar la query de detalle y de lista al terminar.",
+        "Advertir cambios sin guardar al navegar fuera (onBeforeRouteLeave)."
+      ],
+      "dependencias": ["HU-04", "HU-06"],
+      "prioridad": "P1",
+      "paso_plan": 7,
+      "status": { "backend": "completado", "frontend": "pendiente" }
+    },
+    {
+      "id": "HU-08",
+      "titulo": "Calcular y visualizar puntaje de prioridad",
+      "modulo": "Prioritization / Scoring Config",
+      "epica": "Priorizacion",
+      "historia_usuario": "Como COORDINADOR_LOGISTICA, quiero ver el puntaje de prioridad de cada familia con su desglose por factor y poder ajustar los pesos, para priorizar de forma transparente y configurable a las familias mas vulnerables.",
+      "descripcion": "El detalle de familia y el ranking muestran priority_score con su desglose por factor (miembros, ninos<5, adultos>65, gestantes, discapacidad, riesgo de zona, dias sin ayuda, entregas recibidas). Una pantalla de configuracion permite editar los pesos (W_*) y MAX_DAYS; al guardar se invalida la cache de priorizacion en el backend.",
+      "criterios_aceptacion": [
+        "El detalle de familia y el ranking incluyen priority_score_breakdown por factor (HU-08 CA2).",
+        "La configuracion permite editar los pesos W_MEMBERS, W_CHILDREN_5, W_ADULTS_65, W_PREGNANT, W_DISABLED, W_ZONE_RISK, W_DAYS_NO_AID, W_DELIVERIES y MAX_DAYS (HU-08 CA5).",
+        "Al guardar la configuracion se invalida la cache del servicio de priorizacion.",
+        "Solo ADMIN y COORDINADOR_LOGISTICA pueden editar los pesos."
+      ],
+      "endpoints": [
+        { "metodo": "GET", "path": "/families/:id", "descripcion": "Detalle con priority_score_breakdown." },
+        { "metodo": "GET", "path": "/scoring-config", "descripcion": "Lee los pesos actuales." },
+        { "metodo": "PUT", "path": "/scoring-config", "descripcion": "Actualiza pesos (ADMIN/COORDINADOR_LOGISTICA)." }
+      ],
+      "frontend": {
+        "rutas": ["/settings/scoring", "/families/:id", "/deliveries/ranking"],
+        "pagina": "ScoringConfigPage.vue",
+        "componentes_clave": ["ScoreBreakdown", "FormField", "NumberInput"]
+      },
+      "roles": ["ADMIN", "COORDINADOR_LOGISTICA"],
+      "reglas_negocio": ["RN-04", "RN-08"],
+      "requisitos_no_funcionales": [],
+      "mejores_practicas": [
+        "Componente ScoreBreakdown reutilizable que renderiza cada factor con su aporte numerico (barra o tabla).",
+        "Tras PUT /scoring-config, invalidar las queries de ranking y detalle de familia para reflejar los nuevos puntajes.",
+        "Validar que los pesos sean numericos y no negativos con Zod; mostrar valores por defecto (seed) como referencia.",
+        "Ocultar la pantalla de configuracion para roles sin permiso (guard + RBAC)."
+      ],
+      "dependencias": ["HU-06"],
+      "prioridad": "P1",
+      "paso_plan": 10,
+      "status": { "backend": "completado", "frontend": "pendiente" }
+    },
+    {
+      "id": "HU-09",
+      "titulo": "Registrar zonas",
+      "modulo": "Zones",
+      "epica": "Geografia y refugios",
+      "historia_usuario": "Como COORDINADOR_LOGISTICA, quiero administrar las zonas geograficas afectadas con su nivel de riesgo, para organizar el censo y la logistica por territorio.",
+      "descripcion": "CRUD de zonas mostradas como grid de cards con nombre, nivel de riesgo (badge por color), poblacion estimada y conteos de familias, refugios y bodegas. El detalle de zona ofrece pestanas de familias, refugios y bodegas mas un mini-mapa.",
+      "criterios_aceptacion": [
+        "CRUD completo de zonas (nombre, risk_level LOW/MEDIUM/HIGH/CRITICAL, latitud, longitud, poblacion estimada).",
+        "El detalle de zona lista sus familias, refugios y bodegas.",
+        "El nivel de riesgo se muestra con badge de color consistente en toda la app."
+      ],
+      "endpoints": [
+        { "metodo": "GET", "path": "/zones", "descripcion": "Lista de zonas." },
+        { "metodo": "GET", "path": "/zones/:id", "descripcion": "Detalle de zona." },
+        { "metodo": "POST", "path": "/zones", "descripcion": "Crea zona." },
+        { "metodo": "PUT", "path": "/zones/:id", "descripcion": "Actualiza zona." },
+        { "metodo": "DELETE", "path": "/zones/:id", "descripcion": "Elimina zona." },
+        { "metodo": "GET", "path": "/zones/:id/families", "descripcion": "Familias de la zona." },
+        { "metodo": "GET", "path": "/zones/:id/shelters", "descripcion": "Refugios de la zona." },
+        { "metodo": "GET", "path": "/zones/:id/warehouses", "descripcion": "Bodegas de la zona." }
+      ],
+      "frontend": {
+        "rutas": ["/zones", "/zones/:id"],
+        "pagina": "ZonesListPage.vue",
+        "componentes_clave": ["CardGrid", "RiskLevelBadge", "Modal", "FormField", "Tabs"]
+      },
+      "roles": ["ADMIN", "COORDINADOR_LOGISTICA"],
+      "reglas_negocio": [],
+      "requisitos_no_funcionales": [],
+      "mejores_practicas": [
+        "Centralizar el mapeo risk_level -> color en utils/constants para reusar en mapa, zonas y vectores.",
+        "Formulario de zona en Modal de Headless UI con validacion Zod.",
+        "Mostrar los conteos (familias/refugios/bodegas) en cada card para dar contexto operativo."
+      ],
+      "dependencias": [],
+      "prioridad": "P0",
+      "paso_plan": 6,
+      "status": { "backend": "completado", "frontend": "pendiente" }
+    },
+    {
+      "id": "HU-10",
+      "titulo": "Registrar refugios",
+      "modulo": "Shelters",
+      "epica": "Geografia y refugios",
+      "historia_usuario": "Como COORDINADOR_LOGISTICA, quiero administrar los refugios temporales con su ubicacion y ocupacion, para controlar la capacidad disponible.",
+      "descripcion": "CRUD de refugios con tabla que muestra nombre, direccion, zona, tipo, capacidad y ocupacion con barra de color (verde <70%, amarillo 70-90%, rojo >90%). El alta exige ubicacion en mapa (lat/lng NOT NULL). Hay un modal de ocupacion que valida no superar max_capacity.",
+      "criterios_aceptacion": [
+        "El formulario exige seleccionar ubicacion en mapa (RN-10, HU-10 CA5).",
+        "La ocupacion se muestra con barra de color por umbral (HU-10 CA2).",
+        "Actualizar ocupacion valida que no supere max_capacity.",
+        "Filtro por zona."
+      ],
+      "endpoints": [
+        { "metodo": "GET", "path": "/shelters", "descripcion": "Lista de refugios." },
+        { "metodo": "GET", "path": "/shelters/:id", "descripcion": "Detalle de refugio." },
+        { "metodo": "POST", "path": "/shelters", "descripcion": "Crea refugio (lat/lng obligatorias)." },
+        { "metodo": "PUT", "path": "/shelters/:id", "descripcion": "Actualiza refugio." },
+        { "metodo": "PUT", "path": "/shelters/:id/occupancy", "descripcion": "Actualiza ocupacion (valida max_capacity)." },
+        { "metodo": "DELETE", "path": "/shelters/:id", "descripcion": "Elimina refugio." }
+      ],
+      "frontend": {
+        "rutas": ["/shelters"],
+        "pagina": "SheltersListPage.vue",
+        "componentes_clave": ["DataTable", "ProgressBar", "MapPicker", "Modal"]
+      },
+      "roles": ["ADMIN", "COORDINADOR_LOGISTICA"],
+      "reglas_negocio": ["RN-10"],
+      "requisitos_no_funcionales": [],
+      "mejores_practicas": [
+        "MapPicker obligatorio: no permitir guardar sin coordenadas (validacion Zod con refine).",
+        "ProgressBar reutilizable con prop de umbrales para colorear segun ocupacion.",
+        "Capturar el error de capacidad excedida y mostrar el cupo restante en el modal de ocupacion."
+      ],
+      "dependencias": ["HU-09"],
+      "prioridad": "P0",
+      "paso_plan": 6,
+      "status": { "backend": "completado", "frontend": "pendiente" }
+    },
+    {
+      "id": "HU-11",
+      "titulo": "Registrar bodegas (alerta 85% / bloqueo 100%)",
+      "modulo": "Warehouses",
+      "epica": "Recursos e inventario",
+      "historia_usuario": "Como COORDINADOR_LOGISTICA, quiero administrar las bodegas con su capacidad y peso actual, para no superar la capacidad fisica de almacenamiento.",
+      "descripcion": "CRUD de bodegas con tabla de nombre, direccion, zona, capacidad, peso actual y % de uso. Alerta visible al 85% de capacidad y bloqueo de cualquier ingreso que supere el 100% (RN-03). El alta exige ubicacion en mapa.",
+      "criterios_aceptacion": [
+        "El formulario exige ubicacion en mapa (RN-10, HU-11 CA2).",
+        "Alerta visible cuando la bodega alcanza el 85% de su capacidad (HU-11 CA3).",
+        "Se bloquea cualquier operacion que lleve el peso por encima del 100% (HU-11 CA4, RN-03).",
+        "El detalle muestra el inventario de la bodega."
+      ],
+      "endpoints": [
+        { "metodo": "GET", "path": "/warehouses", "descripcion": "Lista de bodegas." },
+        { "metodo": "GET", "path": "/warehouses/:id", "descripcion": "Detalle de bodega." },
+        { "metodo": "GET", "path": "/warehouses/:id/inventory", "descripcion": "Inventario de la bodega." },
+        { "metodo": "POST", "path": "/warehouses", "descripcion": "Crea bodega (lat/lng obligatorias)." },
+        { "metodo": "PUT", "path": "/warehouses/:id", "descripcion": "Actualiza bodega." },
+        { "metodo": "DELETE", "path": "/warehouses/:id", "descripcion": "Elimina bodega." }
+      ],
+      "frontend": {
+        "rutas": ["/warehouses", "/warehouses/:id"],
+        "pagina": "WarehousesListPage.vue",
+        "componentes_clave": ["DataTable", "ProgressBar", "MapPicker", "AlertBanner"]
+      },
+      "roles": ["ADMIN", "COORDINADOR_LOGISTICA"],
+      "reglas_negocio": ["RN-03", "RN-10"],
+      "requisitos_no_funcionales": [],
+      "mejores_practicas": [
+        "Mostrar el flag is_over_85_percent del backend como alerta visual destacada en la fila y el detalle.",
+        "Confiar en el backend para el bloqueo al 100% y reflejar el error (SH422) con mensaje claro y monto excedido.",
+        "MapPicker obligatorio igual que en refugios; reusar el mismo componente."
+      ],
+      "dependencias": ["HU-09"],
+      "prioridad": "P0",
+      "paso_plan": 8,
+      "status": { "backend": "completado", "frontend": "pendiente" }
+    },
+    {
+      "id": "HU-12",
+      "titulo": "Bodega mas cercana",
+      "modulo": "Warehouses",
+      "epica": "Recursos e inventario",
+      "historia_usuario": "Como OPERADOR_ENTREGAS, quiero conocer la bodega mas cercana a un punto, para optimizar la logistica de la entrega.",
+      "descripcion": "Funcion de bodega mas cercana por distancia (Haversine en SQL) integrada principalmente en el flujo de entrega (paso de seleccion de bodega). Si no hay bodega con disponibilidad, se muestra un mensaje claro.",
+      "criterios_aceptacion": [
+        "Devuelve la(s) bodega(s) mas cercana(s) a unas coordenadas dadas.",
+        "Si ninguna bodega tiene disponibilidad, se muestra un mensaje claro (HU-12 CA4).",
+        "Se integra como opcion 'mas cercana' en el formulario de entrega."
+      ],
+      "endpoints": [
+        { "metodo": "GET", "path": "/warehouses/nearest", "descripcion": "Bodega mas cercana: lat, lng, limit." }
+      ],
+      "frontend": {
+        "rutas": ["/deliveries/new"],
+        "pagina": "DeliveryFormPage.vue",
+        "componentes_clave": ["SelectField", "EmptyState"]
+      },
+      "roles": ["ADMIN", "OPERADOR_ENTREGAS", "COORDINADOR_LOGISTICA"],
+      "reglas_negocio": [],
+      "requisitos_no_funcionales": [],
+      "mejores_practicas": [
+        "Usar la geolocalizacion del dispositivo (si esta disponible) o las coordenadas de la familia para la consulta.",
+        "Mostrar la distancia estimada junto al nombre de la bodega sugerida.",
+        "EmptyState con accion alternativa cuando no hay disponibilidad."
+      ],
+      "dependencias": ["HU-11"],
+      "prioridad": "P1",
+      "paso_plan": 11,
+      "status": { "backend": "completado", "frontend": "pendiente" }
+    },
+    {
+      "id": "HU-13",
+      "titulo": "Mapa con capas",
+      "modulo": "Map",
+      "epica": "Geoespacial",
+      "historia_usuario": "Como usuario operativo, quiero visualizar refugios, bodegas, familias, vectores y entregas en un mapa con capas, para tener una vision geoespacial de la operacion.",
+      "descripcion": "Mapa Leaflet centrado en Monteria con capas independientes activables: refugios (azul), bodegas (verde), familias (naranja, agrupadas), vectores (rojo), entregas recientes (morado) y zonas sin entregas (resaltado). Las familias sin coordenadas se agrupan por zona. Los popups de familias no muestran datos sensibles.",
+      "criterios_aceptacion": [
+        "Capas activables/desactivables de forma independiente (HU-13 CA2).",
+        "Familias sin coordenadas aparecen agrupadas por su zona (HU-13 CA5).",
+        "Popups de familias sin datos sensibles (solo coordenadas, estado, prioridad).",
+        "Filtro por zona y leyenda visibles."
+      ],
+      "endpoints": [
+        { "metodo": "GET", "path": "/map/shelters", "descripcion": "Refugios para el mapa." },
+        { "metodo": "GET", "path": "/map/warehouses", "descripcion": "Bodegas para el mapa." },
+        { "metodo": "GET", "path": "/map/families", "descripcion": "Familias (sin datos sensibles)." },
+        { "metodo": "GET", "path": "/map/vectors", "descripcion": "Vectores sanitarios." },
+        { "metodo": "GET", "path": "/map/zone/:id", "descripcion": "Agregado de una zona." },
+        { "metodo": "GET", "path": "/map/recent-deliveries", "descripcion": "Entregas recientes (ultimos dias)." },
+        { "metodo": "GET", "path": "/map/zones-without-deliveries", "descripcion": "Zonas sin entregas." }
+      ],
+      "frontend": {
+        "rutas": ["/map"],
+        "pagina": "MapPage.vue",
+        "componentes_clave": ["MapContainer", "MarkerCluster", "LayerToggle", "MarkerPopup", "ZonesHighlight", "MapLegend"]
+      },
+      "roles": ["ADMIN", "CENSADOR", "OPERADOR_ENTREGAS", "COORDINADOR_LOGISTICA", "FUNCIONARIO_CONTROL"],
+      "reglas_negocio": [],
+      "requisitos_no_funcionales": [],
+      "mejores_practicas": [
+        "Usar @vue-leaflet/vue-leaflet con carga diferida del mapa para no penalizar el bundle inicial.",
+        "Cargar cada capa con su propia query y solo cuando el toggle esta activo (lazy fetch por capa).",
+        "Clustering en la capa de familias por volumen; iconos diferenciados y leyenda clara.",
+        "Centralizar coords de Monteria, tile URL e iconos en utils/mapConfig."
+      ],
+      "dependencias": ["HU-10", "HU-11"],
+      "prioridad": "P1",
+      "paso_plan": 14,
+      "status": { "backend": "completado", "frontend": "pendiente" }
+    },
+    {
+      "id": "HU-14",
+      "titulo": "Registrar tipos de recurso",
+      "modulo": "Resource Types",
+      "epica": "Recursos e inventario",
+      "historia_usuario": "Como REGISTRADOR_DONACIONES, quiero administrar el catalogo de tipos de ayuda, para clasificar el inventario y las donaciones de forma consistente.",
+      "descripcion": "CRUD del catalogo de tipos de recurso (nombre, categoria FOOD/BLANKET/MATTRESS/HYGIENE/MEDICATION, unidad de medida, peso unitario) con unique (name, category). En lugar de eliminar, se desactiva con is_active=false.",
+      "criterios_aceptacion": [
+        "Unique (name, category) en el catalogo (HU-14 CA2).",
+        "Soft-delete con is_active=false en vez de DELETE fisico (HU-14 CA4).",
+        "Filtro por categoria.",
+        "Cada tipo define unit_of_measure y unit_weight_kg."
+      ],
+      "endpoints": [
+        { "metodo": "GET", "path": "/resource-types", "descripcion": "Lista de tipos de recurso." },
+        { "metodo": "GET", "path": "/resource-types/:id", "descripcion": "Detalle de tipo de recurso." },
+        { "metodo": "POST", "path": "/resource-types", "descripcion": "Crea tipo de recurso." },
+        { "metodo": "PUT", "path": "/resource-types/:id", "descripcion": "Actualiza tipo de recurso." },
+        { "metodo": "DELETE", "path": "/resource-types/:id", "descripcion": "Soft-delete (is_active=false)." }
+      ],
+      "frontend": {
+        "rutas": ["/inventory/resource-types"],
+        "pagina": "ResourceTypesPage.vue",
+        "componentes_clave": ["DataTable", "CategoryBadge", "Modal", "FormField", "ToggleSwitch"]
+      },
+      "roles": ["ADMIN", "COORDINADOR_LOGISTICA", "REGISTRADOR_DONACIONES"],
+      "reglas_negocio": [],
+      "requisitos_no_funcionales": [],
+      "mejores_practicas": [
+        "Mostrar inactivos atenuados con opcion de reactivar; nunca ofrecer borrado fisico.",
+        "Capturar el conflicto de unique (name, category) (SH409) y resaltar el campo.",
+        "Categoria como enum centralizado con su color/icono reutilizable en inventario y donaciones."
+      ],
+      "dependencias": [],
+      "prioridad": "P1",
+      "paso_plan": 8,
+      "status": { "backend": "completado", "frontend": "pendiente" }
+    },
+    {
+      "id": "HU-15",
+      "titulo": "Consultar inventario",
+      "modulo": "Inventory",
+      "epica": "Recursos e inventario",
+      "historia_usuario": "Como COORDINADOR_LOGISTICA, quiero consultar el inventario por bodega y un resumen por categoria, para saber con que recursos cuento.",
+      "descripcion": "Vistas de inventario: listado filtrable por bodega con lotes y fechas de expiracion resaltadas, y un resumen con cards por categoria y grafico de stock por recurso.",
+      "criterios_aceptacion": [
+        "Listado de inventario filtrable por bodega (warehouse_id) con paginacion.",
+        "Resumen agregado por categoria con grafico de stock.",
+        "Las fechas de expiracion proximas se resaltan visualmente."
+      ],
+      "endpoints": [
+        { "metodo": "GET", "path": "/inventory", "descripcion": "Lista de inventario (filtro warehouse_id, paginado)." },
+        { "metodo": "GET", "path": "/inventory/summary", "descripcion": "Resumen por categoria/recurso." },
+        { "metodo": "GET", "path": "/warehouses/:id/inventory", "descripcion": "Inventario de una bodega." }
+      ],
+      "frontend": {
+        "rutas": ["/inventory/summary", "/warehouses/:id"],
+        "pagina": "InventorySummaryPage.vue",
+        "componentes_clave": ["DataTable", "KpiCard", "BarChart", "CategoryBadge"]
+      },
+      "roles": ["ADMIN", "COORDINADOR_LOGISTICA", "OPERADOR_ENTREGAS", "REGISTRADOR_DONACIONES"],
+      "reglas_negocio": [],
+      "requisitos_no_funcionales": [],
+      "mejores_practicas": [
+        "Resaltar expiraciones proximas con un umbral configurable y color de advertencia.",
+        "Graficos con vue-chartjs/vue-echarts, accesibles (con tabla equivalente para lectores de pantalla).",
+        "Cache de summary con vue-query y refetch en background."
+      ],
+      "dependencias": ["HU-11", "HU-14"],
+      "prioridad": "P1",
+      "paso_plan": 8,
+      "status": { "backend": "completado", "frontend": "pendiente" }
+    },
+    {
+      "id": "HU-16",
+      "titulo": "Alertas de stock configurables",
+      "modulo": "Inventory / Alert Thresholds",
+      "epica": "Recursos e inventario",
+      "historia_usuario": "Como COORDINADOR_LOGISTICA, quiero configurar umbrales minimos de stock por recurso y ver las alertas activas, para reaccionar antes de quedarme sin suministros.",
+      "descripcion": "Pantalla de alertas que muestra recursos por debajo del umbral con su severidad, y pantalla de configuracion donde se editan los umbrales minimos por recurso.",
+      "criterios_aceptacion": [
+        "Umbral minimo configurable por recurso (HU-16 CA2).",
+        "Las alertas activas se listan con su severidad.",
+        "Solo ADMIN/COORDINADOR_LOGISTICA pueden editar umbrales."
+      ],
+      "endpoints": [
+        { "metodo": "GET", "path": "/inventory/alerts", "descripcion": "Alertas de stock activas." },
+        { "metodo": "GET", "path": "/alert-thresholds", "descripcion": "Umbrales configurados." },
+        { "metodo": "PUT", "path": "/alert-thresholds", "descripcion": "Crea/actualiza umbral por recurso (upsert)." }
+      ],
+      "frontend": {
+        "rutas": ["/inventory/alerts", "/settings/alerts"],
+        "pagina": "InventoryAlertsPage.vue",
+        "componentes_clave": ["AlertCard", "SeverityBadge", "DataTable", "NumberInput"]
+      },
+      "roles": ["ADMIN", "COORDINADOR_LOGISTICA"],
+      "reglas_negocio": [],
+      "requisitos_no_funcionales": [],
+      "mejores_practicas": [
+        "Reflejar el conteo de alertas activas en el KPI de dashboard y en el navbar.",
+        "Edicion inline de umbrales con guardado optimista (PUT upsert) e invalidacion de alertas.",
+        "Color de severidad coherente con el resto de la app (ambar/rojo)."
+      ],
+      "dependencias": ["HU-14", "HU-15"],
+      "prioridad": "P1",
+      "paso_plan": 8,
+      "status": { "backend": "completado", "frontend": "pendiente" }
+    },
+    {
+      "id": "HU-17",
+      "titulo": "Ajustar inventario con motivo",
+      "modulo": "Inventory",
+      "epica": "Recursos e inventario",
+      "historia_usuario": "Como COORDINADOR_LOGISTICA, quiero ajustar manualmente el inventario indicando un motivo obligatorio, para corregir mermas, danos, devoluciones o errores dejando traza.",
+      "descripcion": "Modal de ajuste de inventario con combo de motivo (SHRINKAGE/DAMAGE/RETURN/CORRECTION) y nota obligatoria. El backend rechaza ajustes que dejen stock negativo y registra el ajuste en inventory_adjustments y audit_logs.",
+      "criterios_aceptacion": [
+        "El ajuste exige reason (enum) y reason_note obligatoria (HU-17 CA1-2).",
+        "Se rechaza cualquier ajuste que deje el stock por debajo de 0 (HU-17 CA3).",
+        "Solo ADMIN/COORDINADOR_LOGISTICA pueden ajustar (HU-17 CA5).",
+        "El ajuste queda registrado en auditoria."
+      ],
+      "endpoints": [
+        { "metodo": "PUT", "path": "/inventory/:id/adjustment", "descripcion": "Ajuste con reason + reason_note (rechaza stock negativo)." }
+      ],
+      "frontend": {
+        "rutas": ["/warehouses/:id"],
+        "pagina": "WarehouseDetailPage.vue",
+        "componentes_clave": ["Modal", "SelectField", "TextArea", "ConfirmDialog"]
+      },
+      "roles": ["ADMIN", "COORDINADOR_LOGISTICA"],
+      "reglas_negocio": ["RN-03"],
+      "requisitos_no_funcionales": [],
+      "mejores_practicas": [
+        "reason_note obligatoria validada en cliente (Zod) ademas del backend.",
+        "Mostrar el stock resultante previsto antes de confirmar y bloquear si seria negativo.",
+        "Ocultar la accion 'Ajustar' para roles sin permiso."
+      ],
+      "dependencias": ["HU-11", "HU-15"],
+      "prioridad": "P1",
+      "paso_plan": 8,
+      "status": { "backend": "completado", "frontend": "pendiente" }
+    },
+    {
+      "id": "HU-18",
+      "titulo": "Registrar donante",
+      "modulo": "Donors",
+      "epica": "Donaciones",
+      "historia_usuario": "Como REGISTRADOR_DONACIONES, quiero registrar y administrar donantes, para llevar el registro de quien aporta recursos.",
+      "descripcion": "CRUD de donantes con nombre, tipo (PERSONA_NATURAL/EMPRESA/ALCALDIA/GOBERNACION/ORGANIZACION), contact requerido (telefono o correo) y tax_id opcional. Unique (name, type). Soft-delete si el donante tiene donaciones.",
+      "criterios_aceptacion": [
+        "Enum de tipo con los 5 valores definidos (HU-18 CA1).",
+        "Campo contact obligatorio (HU-18 CA2).",
+        "Unique compuesto (name, type) validado (HU-18 CA3).",
+        "Donante con donaciones se desactiva en vez de eliminarse."
+      ],
+      "endpoints": [
+        { "metodo": "GET", "path": "/donors", "descripcion": "Lista de donantes (paginado, filtros)." },
+        { "metodo": "GET", "path": "/donors/:id", "descripcion": "Detalle de donante." },
+        { "metodo": "POST", "path": "/donors", "descripcion": "Crea donante." },
+        { "metodo": "PUT", "path": "/donors/:id", "descripcion": "Actualiza donante." },
+        { "metodo": "DELETE", "path": "/donors/:id", "descripcion": "Soft-delete (si tiene donaciones)." }
+      ],
+      "frontend": {
+        "rutas": ["/donors"],
+        "pagina": "DonorsListPage.vue",
+        "componentes_clave": ["DataTable", "DonorTypeBadge", "Modal", "FormField"]
+      },
+      "roles": ["ADMIN", "REGISTRADOR_DONACIONES"],
+      "reglas_negocio": [],
+      "requisitos_no_funcionales": [],
+      "mejores_practicas": [
+        "Validar contact como telefono o email con Zod antes de enviar.",
+        "Capturar el conflicto unique (name, type) (SH409) y senalar el campo.",
+        "Badge de tipo de donante con color consistente."
+      ],
+      "dependencias": [],
+      "prioridad": "P1",
+      "paso_plan": 9,
+      "status": { "backend": "completado", "frontend": "pendiente" }
+    },
+    {
+      "id": "HU-19",
+      "titulo": "Registrar donacion",
+      "modulo": "Donations",
+      "epica": "Donaciones",
+      "historia_usuario": "Como REGISTRADOR_DONACIONES, quiero registrar una donacion con sus items y bodega destino, para incrementar el inventario de forma trazable.",
+      "descripcion": "Formulario multi-seccion de donacion (donante, bodega destino, tipo IN_KIND/MONETARY/MIXED, items con recurso y cantidad). El peso se calcula automaticamente y se alerta si la donacion superaria la capacidad de la bodega destino. La creacion es transaccional y actualiza el inventario.",
+      "criterios_aceptacion": [
+        "Calculo automatico del peso total a partir de los items.",
+        "Rechaza la donacion si excede la max_capacity_kg de la bodega destino (HU-19 CA3, RN-03).",
+        "La creacion actualiza el inventario de la bodega destino en una sola transaccion (backend).",
+        "Genera codigo DON secuencial (RN-07)."
+      ],
+      "endpoints": [
+        { "metodo": "GET", "path": "/donations", "descripcion": "Lista de donaciones (paginado, filtros)." },
+        { "metodo": "GET", "path": "/donations/:id", "descripcion": "Detalle de donacion." },
+        { "metodo": "POST", "path": "/donations", "descripcion": "Crea donacion (transaccional, actualiza inventario)." }
+      ],
+      "frontend": {
+        "rutas": ["/donations", "/donations/new"],
+        "pagina": "DonationFormPage.vue",
+        "componentes_clave": ["DynamicFieldArray", "SelectField", "WeightCalculator", "AlertBanner"]
+      },
+      "roles": ["ADMIN", "REGISTRADOR_DONACIONES"],
+      "reglas_negocio": ["RN-03", "RN-07"],
+      "requisitos_no_funcionales": [],
+      "mejores_practicas": [
+        "Filas dinamicas de items (DynamicFieldArray) con calculo de peso en vivo usando unit_weight_kg.",
+        "Mostrar advertencia anticipada si el peso proyectado supera la capacidad de la bodega destino.",
+        "Deshabilitar items en especie si el tipo es MONETARY; mostrar monto si es MONETARY/MIXED."
+      ],
+      "dependencias": ["HU-11", "HU-14", "HU-18"],
+      "prioridad": "P1",
+      "paso_plan": 9,
+      "status": { "backend": "completado", "frontend": "pendiente" }
+    },
+    {
+      "id": "HU-20",
+      "titulo": "Historial de donaciones por donante",
+      "modulo": "Donations / Donors",
+      "epica": "Donaciones",
+      "historia_usuario": "Como FUNCIONARIO_CONTROL, quiero ver el historial de donaciones de un donante, para auditar sus aportes en el tiempo.",
+      "descripcion": "Vista de historial de donaciones de un donante, ordenado por fecha descendente, accesible desde el detalle del donante.",
+      "criterios_aceptacion": [
+        "Lista de donaciones del donante ordenada por fecha descendente (HU-20 CA1).",
+        "Accesible desde el detalle del donante."
+      ],
+      "endpoints": [
+        { "metodo": "GET", "path": "/donors/:id/donations", "descripcion": "Historial de donaciones del donante (fecha desc)." }
+      ],
+      "frontend": {
+        "rutas": ["/donors/:id"],
+        "pagina": "DonorDetailPage.vue",
+        "componentes_clave": ["DataTable", "DonationTypeBadge"]
+      },
+      "roles": ["ADMIN", "REGISTRADOR_DONACIONES", "FUNCIONARIO_CONTROL"],
+      "reglas_negocio": ["RN-06"],
+      "requisitos_no_funcionales": [],
+      "mejores_practicas": [
+        "Enlazar cada donacion a su detalle y, desde ahi, a la trazabilidad (HU-29).",
+        "Mostrar totales agregados (peso, monto) del donante en el encabezado."
+      ],
+      "dependencias": ["HU-18", "HU-19"],
+      "prioridad": "P2",
+      "paso_plan": 9,
+      "status": { "backend": "completado", "frontend": "pendiente" }
+    },
+    {
+      "id": "HU-21",
+      "titulo": "Plan de distribucion",
+      "modulo": "Distribution Plans",
+      "epica": "Distribucion",
+      "historia_usuario": "Como COORDINADOR_LOGISTICA, quiero generar un plan de distribucion priorizado por alcance y ejecutarlo, para asignar recursos a las familias mas vulnerables de forma ordenada.",
+      "descripcion": "Wizard de generacion de plan con alcance (GLOBAL/ZONE/SHELTER/BATCH). El backend toma las familias elegibles del alcance, las ordena por puntaje y asigna recursos respetando stock y cobertura minima, marcando como SIN_ATENDER las que no alcanzan. El plan se guarda como PROGRAMADA y puede ejecutarse (materializa entregas) o cancelarse.",
+      "criterios_aceptacion": [
+        "Generacion por alcance GLOBAL/ZONE/SHELTER/BATCH con preview de familias elegibles ordenadas por puntaje.",
+        "Marca items como SIN_ATENDER cuando no hay stock suficiente (HU-21 CA4).",
+        "Estados PROGRAMADA/EN_EJECUCION/COMPLETADA/CANCELADA.",
+        "Ejecutar el plan materializa las entregas; cancelar lo anula."
+      ],
+      "endpoints": [
+        { "metodo": "POST", "path": "/distribution-plans", "descripcion": "Genera plan priorizado para un alcance." },
+        { "metodo": "GET", "path": "/distribution-plans", "descripcion": "Lista de planes." },
+        { "metodo": "GET", "path": "/distribution-plans/:id", "descripcion": "Detalle del plan (con items)." },
+        { "metodo": "POST", "path": "/distribution-plans/:id/execute", "descripcion": "Ejecuta el plan (genera entregas)." },
+        { "metodo": "PUT", "path": "/distribution-plans/:id/cancel", "descripcion": "Cancela el plan." }
+      ],
+      "frontend": {
+        "rutas": ["/distribution-plans", "/distribution-plans/new", "/distribution-plans/:id"],
+        "pagina": "DistributionPlanFormPage.vue",
+        "componentes_clave": ["Wizard", "DataTable", "ScopeSelector", "StatusBadge", "AlertBanner", "ConfirmDialog"]
+      },
+      "roles": ["ADMIN", "COORDINADOR_LOGISTICA"],
+      "reglas_negocio": ["RN-01", "RN-04", "RN-05"],
+      "requisitos_no_funcionales": [],
+      "mejores_practicas": [
+        "Wizard de 3 pasos (alcance -> preview -> confirmar) con estado local; no persistir hasta confirmar.",
+        "Mostrar de forma destacada el aviso 'N familias sin atender por falta de stock'.",
+        "La ejecucion puede ser larga: deshabilitar el boton y mostrar progreso; confirmar antes de ejecutar/cancelar.",
+        "Refrescar inventario y ranking tras ejecutar, ya que cambian stock y puntajes."
+      ],
+      "dependencias": ["HU-08", "HU-15", "HU-22"],
+      "prioridad": "P1",
+      "paso_plan": 12,
+      "status": { "backend": "completado", "frontend": "pendiente" }
+    },
+    {
+      "id": "HU-22",
+      "titulo": "Registrar entrega individual (offline)",
+      "modulo": "Deliveries",
+      "epica": "Entregas",
+      "historia_usuario": "Como OPERADOR_ENTREGAS, quiero registrar una entrega a una familia desde el celular incluso sin conexion, para entregar ayuda en terreno garantizando la cobertura minima.",
+      "descripcion": "Formulario multi-step de entrega (familia -> bodega -> items -> confirmar) con calculo automatico de cobertura (0,6 kg/persona/dia, minimo 3 dias), captura de 'recibido por' y coordenadas. El inventario de origen se decrementa en la misma transaccion. Funciona offline con client_op_id y se sincroniza con Idempotency-Key.",
+      "criterios_aceptacion": [
+        "Calculo automatico de cobertura; alerta si la cobertura resultante es menor a 3 dias (RN-01).",
+        "Al confirmar, el inventario de la bodega de origen se decrementa (RN-05).",
+        "Offline (HU-22 CA6): se guarda con client_op_id y se sincroniza con header Idempotency-Key sin duplicar.",
+        "Genera codigo de entrega secuencial (RN-07)."
+      ],
+      "endpoints": [
+        { "metodo": "GET", "path": "/deliveries", "descripcion": "Lista de entregas (filtros: zona, estado, fechas, bodega)." },
+        { "metodo": "GET", "path": "/deliveries/:id", "descripcion": "Detalle de entrega." },
+        { "metodo": "POST", "path": "/deliveries", "descripcion": "Crea entrega (acepta header Idempotency-Key)." },
+        { "metodo": "PUT", "path": "/deliveries/:id/status", "descripcion": "Cambia estado (SCHEDULED -> IN_PROGRESS -> DELIVERED)." }
+      ],
+      "frontend": {
+        "rutas": ["/deliveries", "/deliveries/new", "/deliveries/:id"],
+        "pagina": "DeliveryFormPage.vue",
+        "componentes_clave": ["Stepper", "FamilySearch", "DynamicFieldArray", "CoverageCalculator", "MapPicker", "OfflineIndicator"]
+      },
+      "roles": ["ADMIN", "OPERADOR_ENTREGAS", "COORDINADOR_LOGISTICA"],
+      "reglas_negocio": ["RN-01", "RN-05", "RN-07"],
+      "requisitos_no_funcionales": ["RNF-01"],
+      "mejores_practicas": [
+        "Calcular la cobertura en vivo (0,6 kg * personas * dias) y bloquear/avisar si baja de 3 dias.",
+        "Generar client_op_id (uuid) y encolar en Dexie cuando esta offline; enviar Idempotency-Key al sincronizar.",
+        "Stepper con validacion por paso; no permitir avanzar con datos incompletos.",
+        "Estados de entrega con StatusBadge consistente (PROGRAMADA gris, EN_CURSO azul, ENTREGADA verde)."
+      ],
+      "dependencias": ["HU-06", "HU-11", "HU-23"],
+      "prioridad": "P1",
+      "paso_plan": 11,
+      "status": { "backend": "completado", "frontend": "pendiente" }
+    },
+    {
+      "id": "HU-23",
+      "titulo": "Prevenir entrega duplicada (con excepcion autorizada)",
+      "modulo": "Deliveries",
+      "epica": "Entregas",
+      "historia_usuario": "Como sistema, quiero impedir entregas a familias con cobertura vigente y permitir excepciones autorizadas, para evitar duplicidad pero atender casos urgentes con justificacion.",
+      "descripcion": "Antes de crear una entrega se consulta la elegibilidad de la familia. Si la cobertura anterior no ha expirado, se bloquea mostrando los dias restantes. Un COORDINADOR_LOGISTICA puede autorizar una entrega anticipada (excepcion) con justificacion obligatoria; la entrega por lote tambien parte de las familias elegibles priorizadas.",
+      "criterios_aceptacion": [
+        "La elegibilidad retorna eligible, reason, last_delivery, coverage_expires y days_remaining (HU-23 CA2).",
+        "Si la cobertura esta vigente, se bloquea con mensaje 'Faltan X dias' (RN-02).",
+        "La excepcion solo esta disponible para COORDINADOR_LOGISTICA y exige justificacion obligatoria (HU-23 CA5).",
+        "La entrega por lote toma las top N familias prioritarias elegibles."
+      ],
+      "endpoints": [
+        { "metodo": "GET", "path": "/deliveries/eligibility", "descripcion": "Elegibilidad por query (family_id)." },
+        { "metodo": "GET", "path": "/families/:id/eligibility", "descripcion": "Elegibilidad de la familia." },
+        { "metodo": "POST", "path": "/deliveries/exception", "descripcion": "Entrega anticipada con exception_reason (solo COORDINADOR_LOGISTICA)." },
+        { "metodo": "POST", "path": "/deliveries/batch", "descripcion": "Entrega por lote a las top N priorizadas." }
+      ],
+      "frontend": {
+        "rutas": ["/deliveries/new", "/deliveries/batch"],
+        "pagina": "DeliveryFormPage.vue",
+        "componentes_clave": ["EligibilityBanner", "ExceptionAuthorizationDialog", "BatchPreview"]
+      },
+      "roles": ["ADMIN", "OPERADOR_ENTREGAS", "COORDINADOR_LOGISTICA"],
+      "reglas_negocio": ["RN-02"],
+      "requisitos_no_funcionales": [],
+      "mejores_practicas": [
+        "Consultar elegibilidad al seleccionar la familia y mostrar un banner claro (verde elegible / rojo bloqueado con dias restantes).",
+        "Mostrar el boton 'Autorizar excepcion' solo a COORDINADOR_LOGISTICA (RBAC) con dialog de justificacion obligatoria.",
+        "En el lote, previsualizar las top N familias antes de confirmar.",
+        "Capturar el 409 de duplicidad y guiar al usuario hacia la excepcion cuando aplique."
+      ],
+      "dependencias": ["HU-08", "HU-22"],
+      "prioridad": "P1",
+      "paso_plan": 11,
+      "status": { "backend": "completado", "frontend": "pendiente" }
+    },
+    {
+      "id": "HU-24",
+      "titulo": "Traslado entre refugios",
+      "modulo": "Relocations",
+      "epica": "Operaciones",
+      "historia_usuario": "Como CENSADOR, quiero registrar el traslado de una familia entre refugios, para mantener actualizada su ubicacion y la ocupacion de los refugios.",
+      "descripcion": "Formulario de traslado: familia (buscable), refugio origen (automatico), refugio destino (excluye el origen, valida capacidad), tipo (TEMPORARY/PERMANENT) y motivo. El backend ajusta la ocupacion de origen y destino y actualiza family.shelter_id en una transaccion.",
+      "criterios_aceptacion": [
+        "El destino excluye al refugio de origen.",
+        "Rechaza el traslado si el destino excede su capacidad (HU-24 CA3).",
+        "Ajusta ocupacion de origen y destino y actualiza la familia (backend, atomico).",
+        "Registra tipo y motivo del traslado."
+      ],
+      "endpoints": [
+        { "metodo": "GET", "path": "/relocations", "descripcion": "Lista de traslados (filtros)." },
+        { "metodo": "GET", "path": "/relocations/:id", "descripcion": "Detalle de traslado." },
+        { "metodo": "POST", "path": "/relocations", "descripcion": "Crea traslado (transaccional)." }
+      ],
+      "frontend": {
+        "rutas": ["/relocations"],
+        "pagina": "RelocationsPage.vue",
+        "componentes_clave": ["DataTable", "FamilySearch", "SelectField", "Modal"]
+      },
+      "roles": ["ADMIN", "CENSADOR", "COORDINADOR_LOGISTICA"],
+      "reglas_negocio": [],
+      "requisitos_no_funcionales": [],
+      "mejores_practicas": [
+        "Precargar el origen a partir del refugio actual de la familia (solo lectura).",
+        "Filtrar el destino para excluir el origen y mostrar cupo disponible por refugio.",
+        "Capturar el error de capacidad excedida y mostrar el cupo restante."
+      ],
+      "dependencias": ["HU-04", "HU-10"],
+      "prioridad": "P2",
+      "paso_plan": 13,
+      "status": { "backend": "completado", "frontend": "pendiente" }
+    },
+    {
+      "id": "HU-25",
+      "titulo": "Registrar foco sanitario (vector)",
+      "modulo": "Health Vectors",
+      "epica": "Operaciones",
+      "historia_usuario": "Como COORDINADOR_LOGISTICA, quiero registrar focos sanitarios y actualizar su estado, para monitorear riesgos de salud por zona o refugio.",
+      "descripcion": "CRUD de vectores sanitarios (tipo CONTAMINATED_WATER/INSECTS/RODENTS/OTHER, nivel de riesgo, ubicacion, zona/refugio, acciones tomadas) con estado ACTIVE/IN_PROGRESS/RESOLVED. El cambio de estado y las acciones tomadas quedan registrados en auditoria.",
+      "criterios_aceptacion": [
+        "Enum de estado con 3 valores: ACTIVE/IN_PROGRESS/RESOLVED (HU-25 CA2).",
+        "Permite actualizar estado + actions_taken (HU-25 CA3).",
+        "La auditoria registra los cambios de estado (HU-25 CA4).",
+        "Filtrable por estado, vector_type, zona y refugio."
+      ],
+      "endpoints": [
+        { "metodo": "GET", "path": "/health-vectors", "descripcion": "Lista de vectores (filtros)." },
+        { "metodo": "GET", "path": "/health-vectors/:id", "descripcion": "Detalle de vector." },
+        { "metodo": "POST", "path": "/health-vectors", "descripcion": "Crea vector." },
+        { "metodo": "PUT", "path": "/health-vectors/:id", "descripcion": "Actualiza vector." },
+        { "metodo": "PUT", "path": "/health-vectors/:id/status", "descripcion": "Cambia estado + actions_taken." },
+        { "metodo": "DELETE", "path": "/health-vectors/:id", "descripcion": "Elimina vector." }
+      ],
+      "frontend": {
+        "rutas": ["/health/vectors"],
+        "pagina": "HealthVectorsPage.vue",
+        "componentes_clave": ["DataTable", "StatusBadge", "RiskLevelBadge", "MapPicker", "Modal"]
+      },
+      "roles": ["ADMIN", "COORDINADOR_LOGISTICA"],
+      "reglas_negocio": [],
+      "requisitos_no_funcionales": [],
+      "mejores_practicas": [
+        "Cambio de estado inline con modal que exige registrar la nueva accion tomada.",
+        "MapPicker con marker arrastrable para el alta; iconos por nivel de riesgo.",
+        "Filtros por estado/tipo/zona persistidos en la URL."
+      ],
+      "dependencias": ["HU-09", "HU-10"],
+      "prioridad": "P2",
+      "paso_plan": 13,
+      "status": { "backend": "completado", "frontend": "pendiente" }
+    },
+    {
+      "id": "HU-26",
+      "titulo": "Focos sanitarios en el mapa",
+      "modulo": "Map / Health Vectors",
+      "epica": "Geoespacial",
+      "historia_usuario": "Como usuario operativo, quiero ver los focos sanitarios en el mapa, para identificar visualmente las zonas de riesgo de salud.",
+      "descripcion": "Capa de vectores sanitarios en el mapa, con iconos por nivel de riesgo. Por defecto se muestran los vectores ACTIVE e IN_PROGRESS.",
+      "criterios_aceptacion": [
+        "Capa de vectores en el mapa con iconos por nivel de riesgo.",
+        "Por defecto filtra ACTIVE + IN_PROGRESS (HU-26 CA3).",
+        "Popup con tipo, riesgo y acciones tomadas."
+      ],
+      "endpoints": [
+        { "metodo": "GET", "path": "/map/vectors", "descripcion": "Vectores para el mapa." }
+      ],
+      "frontend": {
+        "rutas": ["/map"],
+        "pagina": "MapPage.vue",
+        "componentes_clave": ["LayerToggle", "MarkerPopup", "RiskLevelBadge"]
+      },
+      "roles": ["ADMIN", "CENSADOR", "OPERADOR_ENTREGAS", "COORDINADOR_LOGISTICA", "FUNCIONARIO_CONTROL"],
+      "reglas_negocio": [],
+      "requisitos_no_funcionales": [],
+      "mejores_practicas": [
+        "Default del filtro a estados activos; permitir incluir RESUELTO opcionalmente.",
+        "Reusar el mapeo de color por nivel de riesgo y el componente de capa del mapa (HU-13)."
+      ],
+      "dependencias": ["HU-13", "HU-25"],
+      "prioridad": "P2",
+      "paso_plan": 14,
+      "status": { "backend": "completado", "frontend": "pendiente" }
+    },
+    {
+      "id": "HU-27",
+      "titulo": "Panel de indicadores (dashboard)",
+      "modulo": "Reports",
+      "epica": "Analitica",
+      "historia_usuario": "Como COORDINADOR_LOGISTICA o FUNCIONARIO_CONTROL, quiero un panel con los indicadores clave de la operacion, para tomar decisiones de un vistazo.",
+      "descripcion": "Dashboard con KPI cards (familias registradas/atendidas/pendientes, entregas hoy, peso almacenado vs capacidad, alertas activas), graficos (entregas por zona, donaciones por tipo, tendencia 30 dias, inventario por categoria) y entregas recientes. Es la pantalla de inicio para COORDINADOR_LOGISTICA y FUNCIONARIO_CONTROL.",
+      "criterios_aceptacion": [
+        "Muestra los KPIs clave con enlaces a sus listados.",
+        "Incluye graficos de entregas por zona, donaciones por tipo y tendencias.",
+        "Es la pantalla de inicio (/dashboard) para COORDINADOR_LOGISTICA y FUNCIONARIO_CONTROL (HU-27 CA3)."
+      ],
+      "endpoints": [
+        { "metodo": "GET", "path": "/reports/dashboard", "descripcion": "Metricas del dashboard." },
+        { "metodo": "GET", "path": "/reports/coverage", "descripcion": "Cobertura por zona." },
+        { "metodo": "GET", "path": "/reports/deliveries-by-zone", "descripcion": "Entregas por zona." },
+        { "metodo": "GET", "path": "/reports/donations-by-type", "descripcion": "Donaciones por tipo." },
+        { "metodo": "GET", "path": "/inventory/alerts", "descripcion": "Alertas activas." }
+      ],
+      "frontend": {
+        "rutas": ["/dashboard"],
+        "pagina": "DashboardPage.vue",
+        "componentes_clave": ["KpiCard", "BarChart", "PieChart", "LineChart", "DataTable"]
+      },
+      "roles": ["ADMIN", "COORDINADOR_LOGISTICA", "FUNCIONARIO_CONTROL"],
+      "reglas_negocio": [],
+      "requisitos_no_funcionales": [],
+      "mejores_practicas": [
+        "Pantalla de inicio dependiente del rol (redireccion post-login segun rol).",
+        "KPI cards clicables que navegan a su listado con filtros aplicados.",
+        "Cargar las metricas en paralelo y mostrar skeletons; refetch en background con vue-query.",
+        "Marcar en rojo familias pendientes y alertas activas cuando son mayores a 0."
+      ],
+      "dependencias": ["HU-22", "HU-19", "HU-16"],
+      "prioridad": "P2",
+      "paso_plan": 15,
+      "status": { "backend": "completado", "frontend": "pendiente" }
+    },
+    {
+      "id": "HU-28",
+      "titulo": "Reporte de cobertura (con export PDF/Excel)",
+      "modulo": "Reports",
+      "epica": "Analitica",
+      "historia_usuario": "Como FUNCIONARIO_CONTROL, quiero un reporte de cobertura y de familias no atendidas con exportacion, para rendir cuentas y planear la atencion pendiente.",
+      "descripcion": "Reportes de cobertura (KPIs + grafico por zona + tabla) y de familias no atendidas (banner de alerta + tabla ordenada por puntaje con enlace para crear entrega). Cada reporte permite exportar a PDF y Excel.",
+      "criterios_aceptacion": [
+        "Reporte de cobertura con indicadores y desglose por zona.",
+        "Familias no atendidas: sin entrega o con cobertura expirada, ordenadas por priority_score desc (HU-28 CA3).",
+        "Exportacion a PDF y Excel (HU-28 CA4) via parametro format o generacion en cliente.",
+        "Enlace directo para crear entrega desde una familia no atendida."
+      ],
+      "endpoints": [
+        { "metodo": "GET", "path": "/reports/coverage", "descripcion": "Cobertura (acepta format=json|pdf|xlsx)." },
+        { "metodo": "GET", "path": "/reports/unattended-families", "descripcion": "Familias no atendidas ordenadas por puntaje." },
+        { "metodo": "GET", "path": "/reports/inventory", "descripcion": "Reporte de inventario." },
+        { "metodo": "GET", "path": "/reports/deliveries-by-zone", "descripcion": "Entregas por zona." }
+      ],
+      "frontend": {
+        "rutas": ["/reports", "/reports/coverage", "/reports/unattended"],
+        "pagina": "CoverageReportPage.vue",
+        "componentes_clave": ["ReportHeader", "ExportButtons", "BarChart", "DataTable", "AlertBanner"]
+      },
+      "roles": ["ADMIN", "OPERADOR_ENTREGAS", "COORDINADOR_LOGISTICA", "FUNCIONARIO_CONTROL", "REGISTRADOR_DONACIONES"],
+      "reglas_negocio": [],
+      "requisitos_no_funcionales": [],
+      "mejores_practicas": [
+        "Usar el parametro ?format=pdf|xlsx del backend para descargas server-side, o jspdf/xlsx en cliente para previews.",
+        "Componente ExportButtons reutilizable en todos los reportes.",
+        "Desde 'familias no atendidas', enlazar a /deliveries/new con la familia preseleccionada."
+      ],
+      "dependencias": ["HU-22"],
+      "prioridad": "P2",
+      "paso_plan": 15,
+      "status": { "backend": "completado", "frontend": "pendiente" }
+    },
+    {
+      "id": "HU-29",
+      "titulo": "Reporte de trazabilidad (con export)",
+      "modulo": "Reports",
+      "epica": "Analitica",
+      "historia_usuario": "Como FUNCIONARIO_CONTROL, quiero rastrear un recurso desde el donante hasta la familia beneficiaria, para garantizar la trazabilidad completa de la ayuda.",
+      "descripcion": "Reporte de trazabilidad que muestra la cadena donante -> bodega -> entrega -> familia, con filtros por donante, rango de fechas y zona, y exportacion a PDF/Excel.",
+      "criterios_aceptacion": [
+        "Rastrea el recurso a lo largo de la cadena donante -> bodega -> entrega -> familia (HU-29 CA1, RN-06).",
+        "Filtros por donante, rango de fechas y zona (HU-29 CA3).",
+        "Exportacion a PDF y Excel (HU-29 CA5)."
+      ],
+      "endpoints": [
+        { "metodo": "GET", "path": "/reports/traceability", "descripcion": "Trazabilidad donante->familia (filtros + format)." }
+      ],
+      "frontend": {
+        "rutas": ["/reports/traceability"],
+        "pagina": "TraceabilityReportPage.vue",
+        "componentes_clave": ["FilterBar", "ExportButtons", "ChainView", "DataTable"]
+      },
+      "roles": ["ADMIN", "COORDINADOR_LOGISTICA", "FUNCIONARIO_CONTROL"],
+      "reglas_negocio": ["RN-06"],
+      "requisitos_no_funcionales": [],
+      "mejores_practicas": [
+        "Visualizar la cadena de forma jerarquica/encadenada (no solo tabla plana) para que sea legible.",
+        "Filtros combinables persistidos en la URL.",
+        "Reusar ExportButtons; enlazar cada nodo de la cadena a su entidad."
+      ],
+      "dependencias": ["HU-19", "HU-22"],
+      "prioridad": "P2",
+      "paso_plan": 15,
+      "status": { "backend": "completado", "frontend": "pendiente" }
+    },
+    {
+      "id": "HU-30",
+      "titulo": "Zonas sin entregas",
+      "modulo": "Reports / Map",
+      "epica": "Analitica",
+      "historia_usuario": "Como COORDINADOR_LOGISTICA, quiero identificar las zonas que no han recibido entregas, para dirigir la atencion a territorios desatendidos.",
+      "descripcion": "Reporte y capa de mapa que muestran las zonas con cero entregas, incluyendo su poblacion y numero de familias registradas, con resaltado visual en el mapa.",
+      "criterios_aceptacion": [
+        "Lista las zonas con cero entregas (HU-30 CA1).",
+        "Incluye poblacion estimada y numero de familias registradas (HU-30 CA5).",
+        "Resaltado visual de esas zonas en el mapa (HU-30 CA4)."
+      ],
+      "endpoints": [
+        { "metodo": "GET", "path": "/reports/zones-without-deliveries", "descripcion": "Reporte de zonas sin entregas." },
+        { "metodo": "GET", "path": "/map/zones-without-deliveries", "descripcion": "Zonas sin entregas para el mapa." }
+      ],
+      "frontend": {
+        "rutas": ["/reports/zones-without-deliveries", "/map"],
+        "pagina": "ZonesWithoutDeliveriesPage.vue",
+        "componentes_clave": ["DataTable", "MapContainer", "ZonesHighlight", "ExportButtons"]
+      },
+      "roles": ["ADMIN", "COORDINADOR_LOGISTICA", "FUNCIONARIO_CONTROL"],
+      "reglas_negocio": [],
+      "requisitos_no_funcionales": [],
+      "mejores_practicas": [
+        "Combinar tabla y mapa en la misma vista para correlacionar datos y territorio.",
+        "Resaltar las zonas en amarillo en el mapa con leyenda explicita.",
+        "Enlazar cada zona a la generacion de un plan de distribucion con ese alcance."
+      ],
+      "dependencias": ["HU-13", "HU-22"],
+      "prioridad": "P2",
+      "paso_plan": 14,
+      "status": { "backend": "completado", "frontend": "pendiente" }
+    },
+    {
+      "id": "HU-31",
+      "titulo": "Historial de auditoria",
+      "modulo": "Audit Logs",
+      "epica": "Control",
+      "historia_usuario": "Como FUNCIONARIO_CONTROL, quiero consultar el historial inmutable de acciones del sistema, para supervisar y auditar la operacion.",
+      "descripcion": "Listado del historial de auditoria con fecha, usuario, accion, modulo, entidad, ID e IP, y una columna expandible con el diff before/after. Filtros por usuario, modulo, tipo de accion y rango de fechas. Solo accesible a FUNCIONARIO_CONTROL y ADMIN; sin mutaciones (RNF-09).",
+      "criterios_aceptacion": [
+        "Solo accesible a FUNCIONARIO_CONTROL y ADMIN.",
+        "Filtros por usuario, modulo, tipo de accion y rango de fechas (HU-31 CA3).",
+        "Muestra el diff before/after de cada accion.",
+        "No expone ninguna operacion de mutacion (RNF-09)."
+      ],
+      "endpoints": [
+        { "metodo": "GET", "path": "/audit-logs", "descripcion": "Historial de auditoria (filtros: user_id, module, action, fechas)." }
+      ],
+      "frontend": {
+        "rutas": ["/audit"],
+        "pagina": "AuditLogPage.vue",
+        "componentes_clave": ["DataTable", "JsonDiffViewer", "FilterBar", "ExportButtons"]
+      },
+      "roles": ["ADMIN", "FUNCIONARIO_CONTROL"],
+      "reglas_negocio": [],
+      "requisitos_no_funcionales": ["RNF-09"],
+      "mejores_practicas": [
+        "Guard de ruta + RBAC: ocultar por completo el modulo para roles no autorizados.",
+        "Diff before/after expandible y legible (formateo JSON con resaltado de cambios).",
+        "Filtros y rango de fechas persistidos en la URL; export PDF/Excel para evidencias.",
+        "Vista estrictamente de solo lectura: no incluir ningun control de edicion."
+      ],
+      "dependencias": ["HU-02"],
+      "prioridad": "P2",
+      "paso_plan": 16,
+      "status": { "backend": "completado", "frontend": "pendiente" }
+    }
+  ]
+}
