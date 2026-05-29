@@ -195,6 +195,19 @@ const router = createRouter({
           component: () => import('@/pages/distributionPlans/DistributionPlanDetailPage.vue'),
           meta: { roles: ['ADMIN', 'COORDINADOR_LOGISTICA'] },
         },
+        // Operaciones — Vectores sanitarios (HU-25/26) y Traslados (HU-24).
+        {
+          path: 'health/vectors',
+          name: 'health-vectors',
+          component: () => import('@/pages/health/HealthVectorsPage.vue'),
+          meta: { roles: ['ADMIN', 'COORDINADOR_LOGISTICA'] },
+        },
+        {
+          path: 'relocations',
+          name: 'relocations',
+          component: () => import('@/pages/relocations/RelocationsPage.vue'),
+          meta: { roles: ['ADMIN', 'COORDINADOR_LOGISTICA'] },
+        },
         // Las demas rutas (mapa, etc.) se agregan aqui
         // a medida que se implementan las HU. Ver HistoriasDeUsuario.json.
       ],
