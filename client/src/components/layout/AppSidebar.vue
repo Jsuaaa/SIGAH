@@ -20,6 +20,7 @@ import {
   ListOrdered,
   ClipboardList,
   Activity,
+  MoveRight,
   BarChart3,
   Settings,
   SlidersHorizontal,
@@ -84,6 +85,7 @@ const groups: NavGroup[] = [
     title: 'Operaciones',
     items: [
       { label: 'Vectores', to: '/health/vectors', icon: Activity, roles: ['ADMIN', 'COORDINADOR_LOGISTICA'] },
+      { label: 'Traslados', to: '/relocations', icon: MoveRight, roles: ['ADMIN', 'COORDINADOR_LOGISTICA'] },
     ],
   },
   {
