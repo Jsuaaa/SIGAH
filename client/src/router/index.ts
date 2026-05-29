@@ -141,6 +141,18 @@ const router = createRouter({
           component: () => import('@/pages/donations/DonationFormPage.vue'),
           meta: { roles: ['ADMIN', 'COORDINADOR_LOGISTICA', 'REGISTRADOR_DONACIONES'] },
         },
+        // Priorización (HU-08): ranking + editor de pesos del puntaje.
+        {
+          path: 'deliveries/ranking',
+          name: 'ranking',
+          component: () => import('@/pages/deliveries/RankingPage.vue'),
+        },
+        {
+          path: 'settings/scoring',
+          name: 'settings-scoring',
+          component: () => import('@/pages/settings/ScoringConfigPage.vue'),
+          meta: { roles: ['ADMIN', 'COORDINADOR_LOGISTICA'] },
+        },
         // Las demas rutas (entregas, mapa, etc.) se agregan aqui
         // a medida que se implementan las HU. Ver HistoriasDeUsuario.json.
       ],

@@ -17,6 +17,7 @@ import {
   Truck,
   HeartHandshake,
   Gift,
+  ListOrdered,
   Activity,
   BarChart3,
   Settings,
@@ -72,6 +73,7 @@ const groups: NavGroup[] = [
     title: 'Ayudas',
     items: [
       { label: 'Entregas', to: '/deliveries', icon: Truck },
+      { label: 'Ranking', to: '/deliveries/ranking', icon: ListOrdered },
       { label: 'Donantes', to: '/donors', icon: HeartHandshake, roles: ['ADMIN', 'COORDINADOR_LOGISTICA', 'REGISTRADOR_DONACIONES', 'FUNCIONARIO_CONTROL'] },
       { label: 'Donaciones', to: '/donations', icon: Gift, roles: ['ADMIN', 'COORDINADOR_LOGISTICA', 'REGISTRADOR_DONACIONES', 'FUNCIONARIO_CONTROL'] },
     ],
