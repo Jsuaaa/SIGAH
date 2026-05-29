@@ -15,6 +15,8 @@ import {
   Boxes,
   Bell,
   Truck,
+  HeartHandshake,
+  Gift,
   Activity,
   BarChart3,
   Settings,
@@ -70,7 +72,8 @@ const groups: NavGroup[] = [
     title: 'Ayudas',
     items: [
       { label: 'Entregas', to: '/deliveries', icon: Truck },
-      { label: 'Donaciones', to: '/donations', icon: Package, roles: ['ADMIN', 'REGISTRADOR_DONACIONES'] },
+      { label: 'Donantes', to: '/donors', icon: HeartHandshake, roles: ['ADMIN', 'COORDINADOR_LOGISTICA', 'REGISTRADOR_DONACIONES', 'FUNCIONARIO_CONTROL'] },
+      { label: 'Donaciones', to: '/donations', icon: Gift, roles: ['ADMIN', 'COORDINADOR_LOGISTICA', 'REGISTRADOR_DONACIONES', 'FUNCIONARIO_CONTROL'] },
     ],
   },
   {

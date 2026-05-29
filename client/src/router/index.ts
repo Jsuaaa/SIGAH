@@ -115,6 +115,32 @@ const router = createRouter({
           component: () => import('@/pages/settings/AlertThresholdsPage.vue'),
           meta: { roles: ['ADMIN', 'COORDINADOR_LOGISTICA'] },
         },
+        // Ayudas — Donantes y Donaciones (HU-18/19/20). Lectura para editores +
+        // FUNCIONARIO_CONTROL (consulta); el alta solo para editores.
+        {
+          path: 'donors',
+          name: 'donors',
+          component: () => import('@/pages/donors/DonorsListPage.vue'),
+          meta: { roles: ['ADMIN', 'COORDINADOR_LOGISTICA', 'REGISTRADOR_DONACIONES', 'FUNCIONARIO_CONTROL'] },
+        },
+        {
+          path: 'donors/:id',
+          name: 'donor-detail',
+          component: () => import('@/pages/donors/DonorDetailPage.vue'),
+          meta: { roles: ['ADMIN', 'COORDINADOR_LOGISTICA', 'REGISTRADOR_DONACIONES', 'FUNCIONARIO_CONTROL'] },
+        },
+        {
+          path: 'donations',
+          name: 'donations',
+          component: () => import('@/pages/donations/DonationsListPage.vue'),
+          meta: { roles: ['ADMIN', 'COORDINADOR_LOGISTICA', 'REGISTRADOR_DONACIONES', 'FUNCIONARIO_CONTROL'] },
+        },
+        {
+          path: 'donations/new',
+          name: 'donation-new',
+          component: () => import('@/pages/donations/DonationFormPage.vue'),
+          meta: { roles: ['ADMIN', 'COORDINADOR_LOGISTICA', 'REGISTRADOR_DONACIONES'] },
+        },
         // Las demas rutas (entregas, mapa, etc.) se agregan aqui
         // a medida que se implementan las HU. Ver HistoriasDeUsuario.json.
       ],
