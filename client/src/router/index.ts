@@ -221,6 +221,13 @@ const router = createRouter({
           component: () => import('@/pages/reports/ReportsPage.vue'),
           meta: { roles: ['ADMIN', 'COORDINADOR_LOGISTICA', 'FUNCIONARIO_CONTROL'] },
         },
+        // Auditoría (HU-31, RNF-09): solo ADMIN y FUNCIONARIO_CONTROL.
+        {
+          path: 'audit',
+          name: 'audit',
+          component: () => import('@/pages/audit/AuditLogPage.vue'),
+          meta: { roles: ['ADMIN', 'FUNCIONARIO_CONTROL'] },
+        },
         // Las demas rutas se agregan aqui a medida que se implementan las HU.
       ],
     },
