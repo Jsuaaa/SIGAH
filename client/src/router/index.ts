@@ -55,6 +55,13 @@ const router = createRouter({
           name: 'person-search',
           component: () => import('@/pages/persons/PersonSearchPage.vue'),
         },
+        // Gestión de usuarios (HU-01/03): solo ADMIN.
+        {
+          path: 'users',
+          name: 'users',
+          component: () => import('@/pages/users/UsersPage.vue'),
+          meta: { roles: ['ADMIN'] },
+        },
         // Zonas (HU-09) y Refugios (HU-10): CRUD restringido a ADMIN/COORDINADOR.
         {
           path: 'zones',
