@@ -1,0 +1,114 @@
+import { createRouter, createWebHistory } from 'vue-router'
+import { useAuthStore } from '@/stores/auth'
+import type { Role } from '@/types/auth.types'
+
+const router = createRouter({
+  history: createWebHistory(),
+  routes: [
+    {
+      path: '/login',
+      name: 'login',
+      component: () => import('@/pages/auth/LoginPage.vue'),
+      meta: { public: true },
+    },
+    {
+      path: '/change-password',
+      name: 'change-password',
+      component: () => import('@/pages/auth/ChangePasswordPage.vue'),
+    },
+    {
+      path: '/',
+      component: () => import('@/components/layout/AppLayout.vue'),
+      children: [
+        { path: '', redirect: { name: 'dashboard' } },
+        {
+          path: 'dashboard',
+          name: 'dashboard',
+          component: () => import('@/pages/dashboard/DashboardPage.vue'),
+        },
+        // Familias (HU-06 lista; HU-04/HU-08 pendientes como stub).
+        {
+          path: 'families',
+          name: 'families',
+          component: () => import('@/pages/families/FamiliesListPage.vue'),
+        },
+        {
+          path: 'families/new',
+          name: 'family-new',
+          component: () => import('@/pages/families/FamilyFormPage.vue'),
+        },
+        {
+          path: 'families/:id',
+          name: 'family-detail',
+          component: () => import('@/pages/families/FamilyDetailPage.vue'),
+        },
+        // Zonas (HU-09) y Refugios (HU-10): CRUD restringido a ADMIN/COORDINADOR.
+        {
+          path: 'zones',
+          name: 'zones',
+          component: () => import('@/pages/zones/ZonesListPage.vue'),
+          meta: { roles: ['ADMIN', 'COORDINADOR_LOGISTICA'] },
+        },
+        {
+          path: 'zones/:id',
+          name: 'zone-detail',
+          component: () => import('@/pages/zones/ZoneDetailPage.vue'),
+          meta: { roles: ['ADMIN', 'COORDINADOR_LOGISTICA'] },
+        },
+        {
+          path: 'shelters',
+          name: 'shelters',
+          component: () => import('@/pages/shelters/SheltersListPage.vue'),
+          meta: { roles: ['ADMIN', 'COORDINADOR_LOGISTICA'] },
+        },
+        // Las demas rutas (entregas, mapa, etc.) se agregan aqui
+        // a medida que se implementan las HU. Ver HistoriasDeUsuario.json.
+      ],
+    },
+    {
+      path: '/:pathMatch(.*)*',
+      name: 'not-found',
+      component: () => import('@/pages/NotFoundPage.vue'),
+    },
+  ],
+})
+
+// Guard global: autenticacion, hidratacion del perfil, cambio obligatorio de
+// contrasena (HU-02, HU-03) y autorizacion por rol (meta.roles, FRONTEND-PLAN §5).
+router.beforeEach(async (to) => {
+  const auth = useAuthStore()
+  const isPublic = to.meta.public === true
+
+  if (!isPublic && !auth.isAuthenticated) {
+    return { name: 'login', query: { redirect: to.fullPath } }
+  }
+
+  if (isPublic && auth.isAuthenticated) {
+    return { name: 'dashboard' }
+  }
+
+  // Tras un refresh hay token pero el perfil (rol) aun no esta en memoria: lo
+  // hidratamos antes de evaluar permisos. Un 401 ya lo maneja el interceptor.
+  if (auth.isAuthenticated && !auth.user) {
+    try {
+      await auth.fetchMe()
+    } catch {
+      return { name: 'login', query: { redirect: to.fullPath } }
+    }
+  }
+
+  if (auth.isAuthenticated && auth.mustChangePassword && to.name !== 'change-password') {
+    return { name: 'change-password' }
+  }
+
+  // Autorizacion por rol: ademas de ocultar el item en la sidebar, bloquea el
+  // acceso directo por URL para roles no autorizados.
+  const roles = to.meta.roles as Role[] | undefined
+  if (roles && auth.user && !auth.hasRole(...roles)) {
+    return { name: 'dashboard' }
+  }
+
+  return true
+})
+
+export default router

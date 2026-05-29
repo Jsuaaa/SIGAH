@@ -1,0 +1,1458 @@
+{
+  "info": {
+    "name": "SIGAH API",
+    "_postman_id": "sigah-api-collection-v1",
+    "description": "Colección completa de la API SIGAH (Sistema Integral de Gestión de Ayuda Humanitaria).\n\nVariables de entorno:\n- `baseUrl`: URL base de la API (por defecto `https://dev.sigah.site/api/v1`).\n- `token`: JWT que se setea automáticamente al ejecutar `Auth > Login`.\n\nAutenticación: Bearer Token (heredado a nivel de colección, excepto en `Auth > Login`).",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      { "key": "token", "value": "{{token}}", "type": "string" }
+    ]
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "https://dev.sigah.site/api/v1", "type": "string" },
+    { "key": "token", "value": "", "type": "string" }
+  ],
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "  const data = pm.response.json();",
+                  "  const token = data?.data?.token;",
+                  "  if (token) {",
+                  "    pm.collectionVariables.set('token', token);",
+                  "    console.log('token guardado en variable de colección.');",
+                  "  }",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@sigah.gov.co\",\n  \"password\": \"Admin123!\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "login"]
+            }
+          }
+        },
+        {
+          "name": "Get profile (me)",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/auth/me", "host": ["{{baseUrl}}"], "path": ["auth", "me"] }
+          }
+        },
+        {
+          "name": "Change password",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"current_password\": \"Admin123!\",\n  \"new_password\": \"NewSecret123!\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/auth/change-password", "host": ["{{baseUrl}}"], "path": ["auth", "change-password"] }
+          }
+        },
+        {
+          "name": "Register user (ADMIN)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"nuevo.usuario@sigah.gov.co\",\n  \"password\": \"TempPass123!\",\n  \"name\": \"Nuevo Usuario\",\n  \"role\": \"CENSADOR\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/auth/register", "host": ["{{baseUrl}}"], "path": ["auth", "register"] }
+          }
+        },
+        {
+          "name": "Reset password (ADMIN)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"new_password\": \"Temp1234!\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/reset-password/:userId",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "reset-password", ":userId"],
+              "variable": [{ "key": "userId", "value": "1" }]
+            }
+          }
+        },
+        {
+          "name": "Set user active (ADMIN)",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"is_active\": true\n}" },
+            "url": {
+              "raw": "{{baseUrl}}/auth/users/:id",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "users", ":id"],
+              "variable": [{ "key": "id", "value": "1" }]
+            }
+          }
+        },
+        {
+          "name": "List users (ADMIN)",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/auth/users?page=1&limit=20",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "users"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "20" },
+                { "key": "role", "value": "CENSADOR", "disabled": true },
+                { "key": "is_active", "value": "true", "disabled": true }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Zones",
+      "item": [
+        {
+          "name": "List zones",
+          "request": { "method": "GET", "url": { "raw": "{{baseUrl}}/zones", "host": ["{{baseUrl}}"], "path": ["zones"] } }
+        },
+        {
+          "name": "Get zone by ID",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/zones/:id",
+              "host": ["{{baseUrl}}"],
+              "path": ["zones", ":id"],
+              "variable": [{ "key": "id", "value": "1" }]
+            }
+          }
+        },
+        {
+          "name": "Create zone",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Zona Norte\",\n  \"risk_level\": \"HIGH\",\n  \"latitude\": 8.7514,\n  \"longitude\": -75.8814,\n  \"estimated_population\": 5000\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/zones", "host": ["{{baseUrl}}"], "path": ["zones"] }
+          }
+        },
+        {
+          "name": "Update zone",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Zona Norte (actualizada)\",\n  \"risk_level\": \"CRITICAL\",\n  \"latitude\": 8.7514,\n  \"longitude\": -75.8814,\n  \"estimated_population\": 5200\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/zones/:id",
+              "host": ["{{baseUrl}}"],
+              "path": ["zones", ":id"],
+              "variable": [{ "key": "id", "value": "1" }]
+            }
+          }
+        },
+        {
+          "name": "Delete zone",
+          "request": {
+            "method": "DELETE",
+            "url": {
+              "raw": "{{baseUrl}}/zones/:id",
+              "host": ["{{baseUrl}}"],
+              "path": ["zones", ":id"],
+              "variable": [{ "key": "id", "value": "1" }]
+            }
+          }
+        },
+        {
+          "name": "List families by zone",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/zones/:id/families",
+              "host": ["{{baseUrl}}"],
+              "path": ["zones", ":id", "families"],
+              "variable": [{ "key": "id", "value": "1" }]
+            }
+          }
+        },
+        {
+          "name": "List shelters by zone",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/zones/:id/shelters",
+              "host": ["{{baseUrl}}"],
+              "path": ["zones", ":id", "shelters"],
+              "variable": [{ "key": "id", "value": "1" }]
+            }
+          }
+        },
+        {
+          "name": "List warehouses by zone",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/zones/:id/warehouses",
+              "host": ["{{baseUrl}}"],
+              "path": ["zones", ":id", "warehouses"],
+              "variable": [{ "key": "id", "value": "1" }]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Shelters",
+      "item": [
+        {
+          "name": "List shelters",
+          "request": { "method": "GET", "url": { "raw": "{{baseUrl}}/shelters", "host": ["{{baseUrl}}"], "path": ["shelters"] } }
+        },
+        {
+          "name": "Get shelter by ID",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/shelters/:id",
+              "host": ["{{baseUrl}}"],
+              "path": ["shelters", ":id"],
+              "variable": [{ "key": "id", "value": "1" }]
+            }
+          }
+        },
+        {
+          "name": "Create shelter",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Refugio Escuela Central\",\n  \"address\": \"Calle 30 # 5-12, Monteria\",\n  \"zone_id\": 1,\n  \"max_capacity\": 200,\n  \"type\": \"SCHOOL\",\n  \"latitude\": 8.7600,\n  \"longitude\": -75.8800\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/shelters", "host": ["{{baseUrl}}"], "path": ["shelters"] }
+          }
+        },
+        {
+          "name": "Update shelter",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Refugio Escuela Central (renombrado)\",\n  \"max_capacity\": 220\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/shelters/:id",
+              "host": ["{{baseUrl}}"],
+              "path": ["shelters", ":id"],
+              "variable": [{ "key": "id", "value": "1" }]
+            }
+          }
+        },
+        {
+          "name": "Update shelter occupancy",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"current_occupancy\": 150\n}" },
+            "url": {
+              "raw": "{{baseUrl}}/shelters/:id/occupancy",
+              "host": ["{{baseUrl}}"],
+              "path": ["shelters", ":id", "occupancy"],
+              "variable": [{ "key": "id", "value": "1" }]
+            }
+          }
+        },
+        {
+          "name": "Delete shelter",
+          "request": {
+            "method": "DELETE",
+            "url": {
+              "raw": "{{baseUrl}}/shelters/:id",
+              "host": ["{{baseUrl}}"],
+              "path": ["shelters", ":id"],
+              "variable": [{ "key": "id", "value": "1" }]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Families",
+      "item": [
+        {
+          "name": "Search families",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/families/search?q=12345",
+              "host": ["{{baseUrl}}"],
+              "path": ["families", "search"],
+              "query": [{ "key": "q", "value": "12345" }]
+            }
+          }
+        },
+        {
+          "name": "List families",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/families?page=1&limit=20",
+              "host": ["{{baseUrl}}"],
+              "path": ["families"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "20" },
+                { "key": "zone_id", "value": "1", "disabled": true },
+                { "key": "status", "value": "ACTIVO", "disabled": true }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get family by ID",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/families/:id",
+              "host": ["{{baseUrl}}"],
+              "path": ["families", ":id"],
+              "variable": [{ "key": "id", "value": "1" }]
+            }
+          }
+        },
+        {
+          "name": "Get family eligibility",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/families/:id/eligibility",
+              "host": ["{{baseUrl}}"],
+              "path": ["families", ":id", "eligibility"],
+              "variable": [{ "key": "id", "value": "1" }]
+            }
+          }
+        },
+        {
+          "name": "List family persons",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/families/:id/persons",
+              "host": ["{{baseUrl}}"],
+              "path": ["families", ":id", "persons"],
+              "variable": [{ "key": "id", "value": "1" }]
+            }
+          }
+        },
+        {
+          "name": "List family deliveries",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/families/:id/deliveries",
+              "host": ["{{baseUrl}}"],
+              "path": ["families", ":id", "deliveries"],
+              "variable": [{ "key": "id", "value": "1" }]
+            }
+          }
+        },
+        {
+          "name": "Create family",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Idempotency-Key", "value": "{{$guid}}", "disabled": true }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"head_document\": \"1100000001\",\n  \"zone_id\": 1,\n  \"shelter_id\": null,\n  \"num_members\": 4,\n  \"num_children_under_5\": 1,\n  \"num_adults_over_65\": 0,\n  \"num_pregnant\": 0,\n  \"num_disabled\": 0,\n  \"status\": \"ACTIVO\",\n  \"latitude\": 8.7510,\n  \"longitude\": -75.8810,\n  \"reference_address\": \"Cra 5 # 22-10\",\n  \"privacy_consent_accepted\": true\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/families", "host": ["{{baseUrl}}"], "path": ["families"] }
+          }
+        },
+        {
+          "name": "Update family",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"num_members\": 5,\n  \"status\": \"EN_REFUGIO\",\n  \"shelter_id\": 1\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/families/:id",
+              "host": ["{{baseUrl}}"],
+              "path": ["families", ":id"],
+              "variable": [{ "key": "id", "value": "1" }]
+            }
+          }
+        },
+        {
+          "name": "Delete family",
+          "request": {
+            "method": "DELETE",
+            "url": {
+              "raw": "{{baseUrl}}/families/:id",
+              "host": ["{{baseUrl}}"],
+              "path": ["families", ":id"],
+              "variable": [{ "key": "id", "value": "1" }]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Persons",
+      "item": [
+        {
+          "name": "Search person by document",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/persons/search?document=1100000001",
+              "host": ["{{baseUrl}}"],
+              "path": ["persons", "search"],
+              "query": [{ "key": "document", "value": "1100000001" }]
+            }
+          }
+        },
+        {
+          "name": "Create person",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"family_id\": 1,\n  \"name\": \"Juan Perez\",\n  \"document\": \"1100000001\",\n  \"birth_date\": \"1990-05-12\",\n  \"gender\": \"M\",\n  \"relationship\": \"PADRE_MADRE\",\n  \"special_conditions\": [],\n  \"requires_medication\": false\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/persons", "host": ["{{baseUrl}}"], "path": ["persons"] }
+          }
+        },
+        {
+          "name": "Update person",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Juan Perez Gomez\",\n  \"special_conditions\": [\"PREGNANT\"]\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/persons/:id",
+              "host": ["{{baseUrl}}"],
+              "path": ["persons", ":id"],
+              "variable": [{ "key": "id", "value": "1" }]
+            }
+          }
+        },
+        {
+          "name": "Delete person",
+          "request": {
+            "method": "DELETE",
+            "url": {
+              "raw": "{{baseUrl}}/persons/:id",
+              "host": ["{{baseUrl}}"],
+              "path": ["persons", ":id"],
+              "variable": [{ "key": "id", "value": "1" }]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Warehouses",
+      "item": [
+        {
+          "name": "Nearest warehouse",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/warehouses/nearest?lat=8.7514&lng=-75.8814&limit=1",
+              "host": ["{{baseUrl}}"],
+              "path": ["warehouses", "nearest"],
+              "query": [
+                { "key": "lat", "value": "8.7514" },
+                { "key": "lng", "value": "-75.8814" },
+                { "key": "limit", "value": "1" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "List warehouses",
+          "request": { "method": "GET", "url": { "raw": "{{baseUrl}}/warehouses", "host": ["{{baseUrl}}"], "path": ["warehouses"] } }
+        },
+        {
+          "name": "Get warehouse by ID",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/warehouses/:id",
+              "host": ["{{baseUrl}}"],
+              "path": ["warehouses", ":id"],
+              "variable": [{ "key": "id", "value": "1" }]
+            }
+          }
+        },
+        {
+          "name": "Warehouse inventory",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/warehouses/:id/inventory",
+              "host": ["{{baseUrl}}"],
+              "path": ["warehouses", ":id", "inventory"],
+              "variable": [{ "key": "id", "value": "1" }]
+            }
+          }
+        },
+        {
+          "name": "Create warehouse",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Bodega Central\",\n  \"address\": \"Cra 4 # 28-20\",\n  \"zone_id\": 1,\n  \"max_capacity_kg\": 10000,\n  \"status\": \"ACTIVE\",\n  \"latitude\": 8.7550,\n  \"longitude\": -75.8850\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/warehouses", "host": ["{{baseUrl}}"], "path": ["warehouses"] }
+          }
+        },
+        {
+          "name": "Update warehouse",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Bodega Central (ampliada)\",\n  \"max_capacity_kg\": 15000\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/warehouses/:id",
+              "host": ["{{baseUrl}}"],
+              "path": ["warehouses", ":id"],
+              "variable": [{ "key": "id", "value": "1" }]
+            }
+          }
+        },
+        {
+          "name": "Delete warehouse",
+          "request": {
+            "method": "DELETE",
+            "url": {
+              "raw": "{{baseUrl}}/warehouses/:id",
+              "host": ["{{baseUrl}}"],
+              "path": ["warehouses", ":id"],
+              "variable": [{ "key": "id", "value": "1" }]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Resource Types",
+      "item": [
+        {
+          "name": "List resource types",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/resource-types",
+              "host": ["{{baseUrl}}"],
+              "path": ["resource-types"],
+              "query": [
+                { "key": "category", "value": "FOOD", "disabled": true },
+                { "key": "is_active", "value": "true", "disabled": true }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get resource type by ID",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/resource-types/:id",
+              "host": ["{{baseUrl}}"],
+              "path": ["resource-types", ":id"],
+              "variable": [{ "key": "id", "value": "1" }]
+            }
+          }
+        },
+        {
+          "name": "Create resource type",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Arroz blanco 1kg\",\n  \"category\": \"FOOD\",\n  \"unit_of_measure\": \"UN\",\n  \"unit_weight_kg\": 1.0\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/resource-types", "host": ["{{baseUrl}}"], "path": ["resource-types"] }
+          }
+        },
+        {
+          "name": "Update resource type",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Arroz blanco premium 1kg\",\n  \"unit_weight_kg\": 1.0\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/resource-types/:id",
+              "host": ["{{baseUrl}}"],
+              "path": ["resource-types", ":id"],
+              "variable": [{ "key": "id", "value": "1" }]
+            }
+          }
+        },
+        {
+          "name": "Delete (soft) resource type",
+          "request": {
+            "method": "DELETE",
+            "url": {
+              "raw": "{{baseUrl}}/resource-types/:id",
+              "host": ["{{baseUrl}}"],
+              "path": ["resource-types", ":id"],
+              "variable": [{ "key": "id", "value": "1" }]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Inventory",
+      "item": [
+        {
+          "name": "Inventory summary",
+          "request": { "method": "GET", "url": { "raw": "{{baseUrl}}/inventory/summary", "host": ["{{baseUrl}}"], "path": ["inventory", "summary"] } }
+        },
+        {
+          "name": "Inventory alerts",
+          "request": { "method": "GET", "url": { "raw": "{{baseUrl}}/inventory/alerts", "host": ["{{baseUrl}}"], "path": ["inventory", "alerts"] } }
+        },
+        {
+          "name": "List inventory",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/inventory?page=1&limit=20",
+              "host": ["{{baseUrl}}"],
+              "path": ["inventory"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "20" },
+                { "key": "warehouse_id", "value": "1", "disabled": true },
+                { "key": "category", "value": "FOOD", "disabled": true },
+                { "key": "expired", "value": "true", "disabled": true }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Upsert inventory",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"warehouse_id\": 1,\n  \"resource_type_id\": 1,\n  \"quantity\": 100,\n  \"batch\": \"LOTE-2026-01\",\n  \"expiration_date\": \"2027-06-30\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/inventory", "host": ["{{baseUrl}}"], "path": ["inventory"] }
+          }
+        },
+        {
+          "name": "Inventory adjustment",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"delta\": -5,\n  \"reason\": \"MERMA\",\n  \"reason_note\": \"Empaques rotos durante traslado\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/inventory/:id/adjustment",
+              "host": ["{{baseUrl}}"],
+              "path": ["inventory", ":id", "adjustment"],
+              "variable": [{ "key": "id", "value": "1" }]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Alert Thresholds",
+      "item": [
+        {
+          "name": "List alert thresholds",
+          "request": { "method": "GET", "url": { "raw": "{{baseUrl}}/alert-thresholds", "host": ["{{baseUrl}}"], "path": ["alert-thresholds"] } }
+        },
+        {
+          "name": "Upsert alert threshold",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"resource_type_id\": 1,\n  \"min_quantity\": 50\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/alert-thresholds", "host": ["{{baseUrl}}"], "path": ["alert-thresholds"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Donors",
+      "item": [
+        {
+          "name": "List donors",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/donors?page=1&limit=20",
+              "host": ["{{baseUrl}}"],
+              "path": ["donors"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "20" },
+                { "key": "type", "value": "EMPRESA", "disabled": true },
+                { "key": "is_active", "value": "true", "disabled": true }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get donor by ID",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/donors/:id",
+              "host": ["{{baseUrl}}"],
+              "path": ["donors", ":id"],
+              "variable": [{ "key": "id", "value": "1" }]
+            }
+          }
+        },
+        {
+          "name": "List donor donations",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/donors/:id/donations",
+              "host": ["{{baseUrl}}"],
+              "path": ["donors", ":id", "donations"],
+              "variable": [{ "key": "id", "value": "1" }]
+            }
+          }
+        },
+        {
+          "name": "Create donor",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Empresa XYZ S.A.\",\n  \"type\": \"EMPRESA\",\n  \"contact\": \"contacto@xyz.com\",\n  \"tax_id\": \"900123456-1\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/donors", "host": ["{{baseUrl}}"], "path": ["donors"] }
+          }
+        },
+        {
+          "name": "Update donor",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"contact\": \"nuevo@xyz.com\",\n  \"is_active\": true\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/donors/:id",
+              "host": ["{{baseUrl}}"],
+              "path": ["donors", ":id"],
+              "variable": [{ "key": "id", "value": "1" }]
+            }
+          }
+        },
+        {
+          "name": "Delete donor",
+          "request": {
+            "method": "DELETE",
+            "url": {
+              "raw": "{{baseUrl}}/donors/:id",
+              "host": ["{{baseUrl}}"],
+              "path": ["donors", ":id"],
+              "variable": [{ "key": "id", "value": "1" }]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Donations",
+      "item": [
+        {
+          "name": "List donations",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/donations?page=1&limit=20",
+              "host": ["{{baseUrl}}"],
+              "path": ["donations"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "20" },
+                { "key": "donor_id", "value": "1", "disabled": true },
+                { "key": "donation_type", "value": "IN_KIND", "disabled": true },
+                { "key": "from", "value": "2026-01-01", "disabled": true },
+                { "key": "to", "value": "2026-12-31", "disabled": true }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get donation by ID",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/donations/:id",
+              "host": ["{{baseUrl}}"],
+              "path": ["donations", ":id"],
+              "variable": [{ "key": "id", "value": "1" }]
+            }
+          }
+        },
+        {
+          "name": "Create donation",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"donor_id\": 1,\n  \"destination_warehouse_id\": 1,\n  \"donation_type\": \"IN_KIND\",\n  \"monetary_amount\": null,\n  \"date\": \"2026-05-11\",\n  \"notes\": \"Donación de arroz y aceite\",\n  \"details\": [\n    {\n      \"resource_type_id\": 1,\n      \"quantity\": 50,\n      \"batch\": \"LOTE-2026-05\",\n      \"expiration_date\": \"2027-05-01\"\n    }\n  ]\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/donations", "host": ["{{baseUrl}}"], "path": ["donations"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Scoring Config",
+      "item": [
+        {
+          "name": "Get scoring config",
+          "request": { "method": "GET", "url": { "raw": "{{baseUrl}}/scoring-config", "host": ["{{baseUrl}}"], "path": ["scoring-config"] } }
+        },
+        {
+          "name": "Update scoring config",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"entries\": [\n    { \"key\": \"W_MEMBERS\", \"value\": 1.0 },\n    { \"key\": \"W_CHILDREN_5\", \"value\": 2.0 },\n    { \"key\": \"W_ADULTS_65\", \"value\": 1.5 },\n    { \"key\": \"W_PREGNANT\", \"value\": 2.0 },\n    { \"key\": \"W_DISABLED\", \"value\": 2.0 },\n    { \"key\": \"W_ZONE_RISK\", \"value\": 1.0 },\n    { \"key\": \"W_DAYS_NO_AID\", \"value\": 0.5 },\n    { \"key\": \"W_DELIVERIES\", \"value\": -0.3 },\n    { \"key\": \"MAX_DAYS\", \"value\": 60 }\n  ]\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/scoring-config", "host": ["{{baseUrl}}"], "path": ["scoring-config"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Prioritization",
+      "item": [
+        {
+          "name": "Ranking",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/prioritization/ranking?page=1&limit=20",
+              "host": ["{{baseUrl}}"],
+              "path": ["prioritization", "ranking"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "20" },
+                { "key": "zone_id", "value": "1", "disabled": true },
+                { "key": "status", "value": "ACTIVO", "disabled": true }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Next batch",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/prioritization/next-batch?page=1&limit=20",
+              "host": ["{{baseUrl}}"],
+              "path": ["prioritization", "next-batch"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "20" },
+                { "key": "zone_id", "value": "1", "disabled": true },
+                { "key": "limit_n", "value": "50", "disabled": true }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Recalculate scores",
+          "request": {
+            "method": "POST",
+            "url": { "raw": "{{baseUrl}}/prioritization/recalculate", "host": ["{{baseUrl}}"], "path": ["prioritization", "recalculate"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Deliveries",
+      "item": [
+        {
+          "name": "Eligibility (by query)",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/deliveries/eligibility?family_id=1",
+              "host": ["{{baseUrl}}"],
+              "path": ["deliveries", "eligibility"],
+              "query": [{ "key": "family_id", "value": "1" }]
+            }
+          }
+        },
+        {
+          "name": "List deliveries",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/deliveries?page=1&limit=20",
+              "host": ["{{baseUrl}}"],
+              "path": ["deliveries"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "20" },
+                { "key": "family_id", "value": "1", "disabled": true },
+                { "key": "status", "value": "ENTREGADA", "disabled": true },
+                { "key": "warehouse_id", "value": "1", "disabled": true },
+                { "key": "from", "value": "2026-01-01", "disabled": true },
+                { "key": "to", "value": "2026-12-31", "disabled": true }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get delivery by ID",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/deliveries/:id",
+              "host": ["{{baseUrl}}"],
+              "path": ["deliveries", ":id"],
+              "variable": [{ "key": "id", "value": "1" }]
+            }
+          }
+        },
+        {
+          "name": "Create delivery",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Idempotency-Key", "value": "{{$guid}}", "disabled": true }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"family_id\": 1,\n  \"source_warehouse_id\": 1,\n  \"coverage_days\": 15,\n  \"received_by_document\": \"1100000001\",\n  \"notes\": \"Entrega regular\",\n  \"delivery_latitude\": 8.7510,\n  \"delivery_longitude\": -75.8810,\n  \"details\": [\n    { \"resource_type_id\": 1, \"quantity\": 10, \"batch\": \"LOTE-2026-05\" }\n  ]\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/deliveries", "host": ["{{baseUrl}}"], "path": ["deliveries"] }
+          }
+        },
+        {
+          "name": "Create batch deliveries",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"plan_id\": 1,\n  \"items\": [\n    {\n      \"family_id\": 1,\n      \"source_warehouse_id\": 1,\n      \"coverage_days\": 15,\n      \"details\": [\n        { \"resource_type_id\": 1, \"quantity\": 10, \"batch\": \"LOTE-2026-05\" }\n      ]\n    }\n  ]\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/deliveries/batch", "host": ["{{baseUrl}}"], "path": ["deliveries", "batch"] }
+          }
+        },
+        {
+          "name": "Create exception delivery",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"family_id\": 1,\n  \"source_warehouse_id\": 1,\n  \"coverage_days\": 5,\n  \"exception_reason\": \"Emergencia sanitaria — familia con menor enfermo\",\n  \"notes\": \"Autorizado por coordinador\",\n  \"delivery_latitude\": 8.7510,\n  \"delivery_longitude\": -75.8810,\n  \"details\": [\n    { \"resource_type_id\": 1, \"quantity\": 5, \"batch\": \"LOTE-2026-05\" }\n  ]\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/deliveries/exception", "host": ["{{baseUrl}}"], "path": ["deliveries", "exception"] }
+          }
+        },
+        {
+          "name": "Update delivery status",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"ENTREGADA\",\n  \"received_by_document\": \"1100000001\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/deliveries/:id/status",
+              "host": ["{{baseUrl}}"],
+              "path": ["deliveries", ":id", "status"],
+              "variable": [{ "key": "id", "value": "1" }]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Distribution Plans",
+      "item": [
+        {
+          "name": "Create plan",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"scope\": \"ZONA\",\n  \"scope_id\": 1,\n  \"notes\": \"Plan semanal zona 1\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/distribution-plans", "host": ["{{baseUrl}}"], "path": ["distribution-plans"] }
+          }
+        },
+        {
+          "name": "List plans",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/distribution-plans?page=1&limit=20",
+              "host": ["{{baseUrl}}"],
+              "path": ["distribution-plans"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "20" },
+                { "key": "status", "value": "PROGRAMADA", "disabled": true },
+                { "key": "scope", "value": "ZONA", "disabled": true }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get plan by ID",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/distribution-plans/:id",
+              "host": ["{{baseUrl}}"],
+              "path": ["distribution-plans", ":id"],
+              "variable": [{ "key": "id", "value": "1" }]
+            }
+          }
+        },
+        {
+          "name": "Execute plan",
+          "request": {
+            "method": "POST",
+            "url": {
+              "raw": "{{baseUrl}}/distribution-plans/:id/execute",
+              "host": ["{{baseUrl}}"],
+              "path": ["distribution-plans", ":id", "execute"],
+              "variable": [{ "key": "id", "value": "1" }]
+            }
+          }
+        },
+        {
+          "name": "Cancel plan",
+          "request": {
+            "method": "PUT",
+            "url": {
+              "raw": "{{baseUrl}}/distribution-plans/:id/cancel",
+              "host": ["{{baseUrl}}"],
+              "path": ["distribution-plans", ":id", "cancel"],
+              "variable": [{ "key": "id", "value": "1" }]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Relocations",
+      "item": [
+        {
+          "name": "List relocations",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/relocations?page=1&limit=20",
+              "host": ["{{baseUrl}}"],
+              "path": ["relocations"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "20" },
+                { "key": "family_id", "value": "1", "disabled": true },
+                { "key": "type", "value": "TEMPORARY", "disabled": true }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get relocation by ID",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/relocations/:id",
+              "host": ["{{baseUrl}}"],
+              "path": ["relocations", ":id"],
+              "variable": [{ "key": "id", "value": "1" }]
+            }
+          }
+        },
+        {
+          "name": "Create relocation",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"family_id\": 1,\n  \"destination_shelter_id\": 1,\n  \"type\": \"TEMPORARY\",\n  \"reason\": \"Inundación en vivienda\",\n  \"notes\": \"Reubicación temporal por 7 días\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/relocations", "host": ["{{baseUrl}}"], "path": ["relocations"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Health Vectors",
+      "item": [
+        {
+          "name": "List health vectors",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/health-vectors?page=1&limit=20",
+              "host": ["{{baseUrl}}"],
+              "path": ["health-vectors"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "20" },
+                { "key": "zone_id", "value": "1", "disabled": true },
+                { "key": "status", "value": "ACTIVO", "disabled": true },
+                { "key": "risk_level", "value": "HIGH", "disabled": true }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get health vector by ID",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/health-vectors/:id",
+              "host": ["{{baseUrl}}"],
+              "path": ["health-vectors", ":id"],
+              "variable": [{ "key": "id", "value": "1" }]
+            }
+          }
+        },
+        {
+          "name": "Create health vector",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"vector_type\": \"AGUA_CONTAMINADA\",\n  \"risk_level\": \"HIGH\",\n  \"description\": \"Pozo contaminado en sector norte\",\n  \"latitude\": 8.7510,\n  \"longitude\": -75.8810,\n  \"zone_id\": 1,\n  \"shelter_id\": null,\n  \"reported_date\": \"2026-05-11T12:00:00Z\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/health-vectors", "host": ["{{baseUrl}}"], "path": ["health-vectors"] }
+          }
+        },
+        {
+          "name": "Update health vector",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"risk_level\": \"MEDIUM\",\n  \"actions_taken\": \"Distribución de cloro y filtros\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/health-vectors/:id",
+              "host": ["{{baseUrl}}"],
+              "path": ["health-vectors", ":id"],
+              "variable": [{ "key": "id", "value": "1" }]
+            }
+          }
+        },
+        {
+          "name": "Update health vector status",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"EN_ATENCION\",\n  \"actions_taken\": \"Equipo de salud desplazado al sector\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/health-vectors/:id/status",
+              "host": ["{{baseUrl}}"],
+              "path": ["health-vectors", ":id", "status"],
+              "variable": [{ "key": "id", "value": "1" }]
+            }
+          }
+        },
+        {
+          "name": "Delete health vector",
+          "request": {
+            "method": "DELETE",
+            "url": {
+              "raw": "{{baseUrl}}/health-vectors/:id",
+              "host": ["{{baseUrl}}"],
+              "path": ["health-vectors", ":id"],
+              "variable": [{ "key": "id", "value": "1" }]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Audit Logs",
+      "item": [
+        {
+          "name": "List audit logs",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/audit-logs?page=1&limit=20",
+              "host": ["{{baseUrl}}"],
+              "path": ["audit-logs"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "20" },
+                { "key": "module", "value": "families", "disabled": true },
+                { "key": "action", "value": "CREATE", "disabled": true },
+                { "key": "user_id", "value": "1", "disabled": true },
+                { "key": "from", "value": "2026-01-01", "disabled": true },
+                { "key": "to", "value": "2026-12-31", "disabled": true }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Map",
+      "item": [
+        {
+          "name": "Map shelters",
+          "request": { "method": "GET", "url": { "raw": "{{baseUrl}}/map/shelters", "host": ["{{baseUrl}}"], "path": ["map", "shelters"] } }
+        },
+        {
+          "name": "Map warehouses",
+          "request": { "method": "GET", "url": { "raw": "{{baseUrl}}/map/warehouses", "host": ["{{baseUrl}}"], "path": ["map", "warehouses"] } }
+        },
+        {
+          "name": "Map families",
+          "request": { "method": "GET", "url": { "raw": "{{baseUrl}}/map/families", "host": ["{{baseUrl}}"], "path": ["map", "families"] } }
+        },
+        {
+          "name": "Map vectors",
+          "request": { "method": "GET", "url": { "raw": "{{baseUrl}}/map/vectors", "host": ["{{baseUrl}}"], "path": ["map", "vectors"] } }
+        },
+        {
+          "name": "Map zone aggregate",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/map/zone/:id",
+              "host": ["{{baseUrl}}"],
+              "path": ["map", "zone", ":id"],
+              "variable": [{ "key": "id", "value": "1" }]
+            }
+          }
+        },
+        {
+          "name": "Map recent deliveries",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/map/recent-deliveries?days=7",
+              "host": ["{{baseUrl}}"],
+              "path": ["map", "recent-deliveries"],
+              "query": [{ "key": "days", "value": "7" }]
+            }
+          }
+        },
+        {
+          "name": "Map zones without deliveries",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/map/zones-without-deliveries?days=30",
+              "host": ["{{baseUrl}}"],
+              "path": ["map", "zones-without-deliveries"],
+              "query": [{ "key": "days", "value": "30" }]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Reports",
+      "item": [
+        {
+          "name": "Coverage by zone",
+          "request": { "method": "GET", "url": { "raw": "{{baseUrl}}/reports/coverage", "host": ["{{baseUrl}}"], "path": ["reports", "coverage"] } }
+        },
+        {
+          "name": "Inventory report",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/reports/inventory",
+              "host": ["{{baseUrl}}"],
+              "path": ["reports", "inventory"],
+              "query": [
+                { "key": "warehouse_id", "value": "1", "disabled": true },
+                { "key": "category", "value": "FOOD", "disabled": true }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Unattended families",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/reports/unattended-families",
+              "host": ["{{baseUrl}}"],
+              "path": ["reports", "unattended-families"],
+              "query": [
+                { "key": "zone_id", "value": "1", "disabled": true },
+                { "key": "since", "value": "2026-01-01", "disabled": true }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Donations by type",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/reports/donations-by-type",
+              "host": ["{{baseUrl}}"],
+              "path": ["reports", "donations-by-type"],
+              "query": [
+                { "key": "from", "value": "2026-01-01", "disabled": true },
+                { "key": "to", "value": "2026-12-31", "disabled": true },
+                { "key": "format", "value": "json", "disabled": true }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Deliveries by zone",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/reports/deliveries-by-zone",
+              "host": ["{{baseUrl}}"],
+              "path": ["reports", "deliveries-by-zone"],
+              "query": [
+                { "key": "from", "value": "2026-01-01", "disabled": true },
+                { "key": "to", "value": "2026-12-31", "disabled": true },
+                { "key": "format", "value": "json", "disabled": true }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Dashboard",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/reports/dashboard",
+              "host": ["{{baseUrl}}"],
+              "path": ["reports", "dashboard"],
+              "query": [{ "key": "format", "value": "json", "disabled": true }]
+            }
+          }
+        },
+        {
+          "name": "Traceability",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/reports/traceability",
+              "host": ["{{baseUrl}}"],
+              "path": ["reports", "traceability"],
+              "query": [
+                { "key": "donation_id", "value": "1", "disabled": true },
+                { "key": "resource_type_id", "value": "1", "disabled": true }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Sync",
+      "item": [
+        {
+          "name": "Sync status",
+          "request": { "method": "GET", "url": { "raw": "{{baseUrl}}/sync/status", "host": ["{{baseUrl}}"], "path": ["sync", "status"] } }
+        },
+        {
+          "name": "Process batch",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"ops\": [\n    {\n      \"idempotency_key\": \"{{$guid}}\",\n      \"method\": \"POST\",\n      \"path\": \"/families\",\n      \"body\": {\n        \"head_document\": \"1100000099\",\n        \"zone_id\": 1,\n        \"num_members\": 3,\n        \"privacy_consent_accepted\": true\n      },\n      \"created_at\": \"2026-05-11T10:00:00Z\"\n    }\n  ]\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/sync", "host": ["{{baseUrl}}"], "path": ["sync"] }
+          }
+        }
+      ]
+    }
+  ]
+}
