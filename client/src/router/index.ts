@@ -63,6 +63,19 @@ const router = createRouter({
           component: () => import('@/pages/shelters/SheltersListPage.vue'),
           meta: { roles: ['ADMIN', 'COORDINADOR_LOGISTICA'] },
         },
+        // Bodegas (HU-11): CRUD restringido a ADMIN/COORDINADOR_LOGISTICA.
+        {
+          path: 'warehouses',
+          name: 'warehouses',
+          component: () => import('@/pages/warehouses/WarehousesListPage.vue'),
+          meta: { roles: ['ADMIN', 'COORDINADOR_LOGISTICA'] },
+        },
+        {
+          path: 'warehouses/:id',
+          name: 'warehouse-detail',
+          component: () => import('@/pages/warehouses/WarehouseDetailPage.vue'),
+          meta: { roles: ['ADMIN', 'COORDINADOR_LOGISTICA'] },
+        },
         // Gestión de usuarios (HU-01): solo ADMIN.
         {
           path: 'users',
