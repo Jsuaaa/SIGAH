@@ -64,8 +64,10 @@
   "resumen": {
     "total_hu": 31,
     "backend_completado": 31,
-    "frontend_pendiente": 31,
-    "frontend_hecho": 0
+    "frontend_hecho": 8,
+    "frontend_en_progreso": 3,
+    "frontend_pendiente": 20,
+    "frontend_status_actualizado": "2026-05-31"
   },
   "historias": [
     {
@@ -104,7 +106,7 @@
       "dependencias": ["HU-02"],
       "prioridad": "P0",
       "paso_plan": 5,
-      "status": { "backend": "completado", "frontend": "pendiente" }
+      "status": { "backend": "completado", "frontend": "hecho" }
     },
     {
       "id": "HU-02",
@@ -141,7 +143,7 @@
       "dependencias": [],
       "prioridad": "P0",
       "paso_plan": 5,
-      "status": { "backend": "completado", "frontend": "pendiente" }
+      "status": { "backend": "completado", "frontend": "hecho" }
     },
     {
       "id": "HU-03",
@@ -174,7 +176,7 @@
       "dependencias": ["HU-02"],
       "prioridad": "P0",
       "paso_plan": 5,
-      "status": { "backend": "completado", "frontend": "pendiente" }
+      "status": { "backend": "completado", "frontend": "en_progreso", "frontend_nota": "Solo placeholder (ChangePasswordPage.vue, ~10 lineas); falta el formulario actual/nueva/confirmar, validacion Zod min 8 y el guard obligatorio." }
     },
     {
       "id": "HU-04",
@@ -210,7 +212,7 @@
       "dependencias": ["HU-09", "HU-10"],
       "prioridad": "P0",
       "paso_plan": 7,
-      "status": { "backend": "completado", "frontend": "pendiente" }
+      "status": { "backend": "completado", "frontend": "hecho" }
     },
     {
       "id": "HU-05",
@@ -246,7 +248,7 @@
       "dependencias": ["HU-04"],
       "prioridad": "P0",
       "paso_plan": 7,
-      "status": { "backend": "completado", "frontend": "pendiente" }
+      "status": { "backend": "completado", "frontend": "hecho" }
     },
     {
       "id": "HU-06",
@@ -283,7 +285,7 @@
       "dependencias": ["HU-04"],
       "prioridad": "P0",
       "paso_plan": 7,
-      "status": { "backend": "completado", "frontend": "pendiente" }
+      "status": { "backend": "completado", "frontend": "hecho" }
     },
     {
       "id": "HU-07",
@@ -317,7 +319,7 @@
       "dependencias": ["HU-04", "HU-06"],
       "prioridad": "P1",
       "paso_plan": 7,
-      "status": { "backend": "completado", "frontend": "pendiente" }
+      "status": { "backend": "completado", "frontend": "hecho" }
     },
     {
       "id": "HU-08",
@@ -354,7 +356,7 @@
       "dependencias": ["HU-06"],
       "prioridad": "P1",
       "paso_plan": 10,
-      "status": { "backend": "completado", "frontend": "pendiente" }
+      "status": { "backend": "completado", "frontend": "en_progreso", "frontend_nota": "Desglose de puntaje (ScoreBreakdown) hecho en el detalle de familia; falta CA5: ScoringConfigPage para editar pesos W_* y MAX_DAYS (no existe carpeta settings/)." }
     },
     {
       "id": "HU-09",
@@ -394,7 +396,7 @@
       "dependencias": [],
       "prioridad": "P0",
       "paso_plan": 6,
-      "status": { "backend": "completado", "frontend": "pendiente" }
+      "status": { "backend": "completado", "frontend": "hecho" }
     },
     {
       "id": "HU-10",
@@ -433,7 +435,7 @@
       "dependencias": ["HU-09"],
       "prioridad": "P0",
       "paso_plan": 6,
-      "status": { "backend": "completado", "frontend": "pendiente" }
+      "status": { "backend": "completado", "frontend": "hecho" }
     },
     {
       "id": "HU-11",
@@ -1053,7 +1055,7 @@
       "dependencias": ["HU-22", "HU-19", "HU-16"],
       "prioridad": "P2",
       "paso_plan": 15,
-      "status": { "backend": "completado", "frontend": "pendiente" }
+      "status": { "backend": "completado", "frontend": "en_progreso", "frontend_nota": "Dashboard con KPIs de ejemplo hardcodeados; falta conectar /reports/dashboard y los graficos reales." }
     },
     {
       "id": "HU-28",
