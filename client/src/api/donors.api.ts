@@ -1,5 +1,6 @@
 import { api } from './axios';
 import type { ApiItem, ApiList } from '@/types/api.types';
+import type { Donation } from '@/types/donation.types';
 import type {
   Donor,
   DonorPayload,
@@ -31,6 +32,16 @@ export const donorsApi = {
 
   getById(id: number) {
     return api.get<ApiItem<Donor>>(`/donors/${id}`).then((r) => r.data.data);
+  },
+
+  // HU-20: historial de donaciones del donante. El backend
+  // (GET /donors/:id/donations → fn_donations_by_donor) devuelve un array de
+  // Donation (cabecera + donante embebido + details[]) ordenado por fecha desc.
+  // No es paginado: la respuesta es { success, data: Donation[] }.
+  getDonations(id: number) {
+    return api
+      .get<ApiList<Donation>>(`/donors/${id}/donations`)
+      .then((r) => r.data.data);
   },
 
   create(payload: DonorPayload) {

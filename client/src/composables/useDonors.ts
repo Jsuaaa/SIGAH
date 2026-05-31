@@ -21,6 +21,26 @@ export function useDonors(params: Ref<DonorListParams>) {
   });
 }
 
+// Detalle de un donante (HU-20). `id` es reactivo: la query se rehace al navegar
+// entre donantes y se inhabilita mientras el id no sea un número válido.
+export function useDonor(id: Ref<number>) {
+  return useQuery({
+    queryKey: ['donors', 'detail', id],
+    queryFn: () => donorsApi.getById(id.value),
+    enabled: () => Number.isFinite(id.value) && id.value > 0,
+  });
+}
+
+// Historial de donaciones de un donante (HU-20), ya ordenado por fecha desc por
+// el backend. Comparte la condición de habilitación con useDonor.
+export function useDonorDonations(id: Ref<number>) {
+  return useQuery({
+    queryKey: ['donors', 'detail', id, 'donations'],
+    queryFn: () => donorsApi.getDonations(id.value),
+    enabled: () => Number.isFinite(id.value) && id.value > 0,
+  });
+}
+
 // Mutaciones de donante. Invalida todo el árbol ['donors'] para refrescar tanto
 // el listado como el catálogo de selects.
 export function useDonorMutations() {
