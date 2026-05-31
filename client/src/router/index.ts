@@ -115,6 +115,12 @@ const router = createRouter({
           component: () => import('@/pages/donors/DonorsListPage.vue'),
           meta: { roles: ['ADMIN', 'REGISTRADOR_DONACIONES'] },
         },
+        {
+          path: 'donors/:id',
+          name: 'donor-detail',
+          component: () => import('@/pages/donors/DonorDetailPage.vue'),
+          meta: { roles: ['ADMIN', 'REGISTRADOR_DONACIONES', 'FUNCIONARIO_CONTROL'] },
+        },
         // Donaciones (HU-19): registro con items y bodega destino.
         {
           path: 'donations',
@@ -127,6 +133,13 @@ const router = createRouter({
           name: 'donation-new',
           component: () => import('@/pages/donations/DonationFormPage.vue'),
           meta: { roles: ['ADMIN', 'REGISTRADOR_DONACIONES'] },
+        },
+        // Configuración de pesos de puntaje (HU-08): solo ADMIN/COORDINADOR.
+        {
+          path: 'settings/scoring',
+          name: 'scoring-config',
+          component: () => import('@/pages/settings/ScoringConfigPage.vue'),
+          meta: { roles: ['ADMIN', 'COORDINADOR_LOGISTICA'] },
         },
         // Gestión de usuarios (HU-01): solo ADMIN.
         {

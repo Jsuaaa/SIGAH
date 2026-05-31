@@ -263,6 +263,13 @@ async function confirmDelete() {
 
           <template #actions="{ row }">
             <div class="flex justify-end gap-1">
+              <!-- HU-20: enlace al detalle con el historial de donaciones. -->
+              <RouterLink
+                :to="`/donors/${asDonor(row).id}`"
+                class="inline-flex h-8 items-center justify-center gap-1.5 rounded-lg px-3 text-sm font-medium text-neutral-600 transition-colors hover:bg-neutral-100"
+              >
+                Ver
+              </RouterLink>
               <RoleGate :roles="[...EDIT_ROLES]">
                 <AppButton variant="ghost" size="sm" @click="openEdit(asDonor(row))">
                   <Pencil />
