@@ -36,13 +36,23 @@ export const resetPassword = asyncHandler(async (req, res) => {
 });
 
 // -----------------------------------------------------------------------
-// ADMIN: activar / desactivar usuario
-// PUT /api/v1/auth/users/:id  body: { is_active: boolean }
+// ADMIN: editar rol, nombre y/o estado de un usuario
+// PUT /api/v1/auth/users/:id  body: { role?, name?, is_active? }
+// Al menos uno de los tres campos debe estar presente (validado en validator).
+// HU-01 CA1
 // -----------------------------------------------------------------------
-export const setActive = asyncHandler(async (req, res) => {
+export const updateUser = asyncHandler(async (req, res) => {
   const userId = parseInt(String(req.params.id), 10);
-  const { is_active } = req.body as { is_active: boolean };
-  const user = await authService.setActive(userId, is_active, req.user!.id);
+  const { role, name, is_active } = req.body as {
+    role?: string;
+    name?: string;
+    is_active?: boolean;
+  };
+  const user = await authService.updateUser(
+    userId,
+    { role: role as import('../types/entities').Role | undefined, name, is_active },
+    req.user!.id,
+  );
   res.json({ success: true, data: user });
 });
 

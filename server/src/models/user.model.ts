@@ -59,6 +59,23 @@ export const UserModel = {
     );
   },
 
+  async update(
+    userId: number,
+    input: { role?: Role; name?: string; is_active?: boolean },
+    adminId: number,
+  ): Promise<void> {
+    await db.query(
+      'SELECT sp_users_update($1, $2::role, $3, $4, $5)',
+      [
+        userId,
+        input.role ?? null,
+        input.name ?? null,
+        input.is_active ?? null,
+        adminId,
+      ],
+    );
+  },
+
   async list(
     page: number,
     perPage: number,

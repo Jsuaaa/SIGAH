@@ -14,7 +14,7 @@ import {
   registerRules,
   changePasswordRules,
   resetPasswordRules,
-  setActiveRules,
+  updateUserRules,
 } from '../../src/validators/auth.validator';
 
 // ---------------------------------------------------------------------------
@@ -215,31 +215,97 @@ describe('resetPasswordRules', () => {
 });
 
 // ---------------------------------------------------------------------------
-// setActiveRules
+// updateUserRules (HU-01 CA1)
 // ---------------------------------------------------------------------------
 
-describe('setActiveRules', () => {
-  it('sin errores con id válido e is_active booleano', async () => {
+describe('updateUserRules', () => {
+  // Casos válidos — al menos un campo presente
+  it('sin errores con solo is_active', async () => {
     const errors = await runValidation(
-      setActiveRules,
+      updateUserRules,
       { is_active: true },
       { id: '5' },
     );
     expect(errors).toHaveLength(0);
   });
 
+  it('sin errores con solo role válido', async () => {
+    const errors = await runValidation(
+      updateUserRules,
+      { role: 'CENSADOR' },
+      { id: '5' },
+    );
+    expect(errors).toHaveLength(0);
+  });
+
+  it('sin errores con solo name válido', async () => {
+    const errors = await runValidation(
+      updateUserRules,
+      { name: 'Nuevo Nombre' },
+      { id: '5' },
+    );
+    expect(errors).toHaveLength(0);
+  });
+
+  it('sin errores con los tres campos presentes', async () => {
+    const errors = await runValidation(
+      updateUserRules,
+      { role: 'COORDINADOR_LOGISTICA', name: 'Otro Nombre', is_active: false },
+      { id: '10' },
+    );
+    expect(errors).toHaveLength(0);
+  });
+
+  // Casos de fallo — body vacío → 422
+  it('falla si el body no trae ningún campo editable', async () => {
+    const errors = await runValidation(
+      updateUserRules,
+      {},
+      { id: '5' },
+    );
+    expect(errors.length).toBeGreaterThan(0);
+    expect(errors.some((e) => e.toLowerCase().includes('at least one'))).toBe(true);
+  });
+
   it('falla con is_active no booleano', async () => {
     const errors = await runValidation(
-      setActiveRules,
+      updateUserRules,
       { is_active: 'maybe' },
       { id: '5' },
     );
     expect(errors.some((e) => e.toLowerCase().includes('boolean'))).toBe(true);
   });
 
+  it('falla con role inválido (RF-01)', async () => {
+    const errors = await runValidation(
+      updateUserRules,
+      { role: 'SUPERADMIN' },
+      { id: '5' },
+    );
+    expect(errors.some((e) => e.toLowerCase().includes('role'))).toBe(true);
+  });
+
+  it('falla con name demasiado corto (< 2 caracteres)', async () => {
+    const errors = await runValidation(
+      updateUserRules,
+      { name: 'X' },
+      { id: '5' },
+    );
+    expect(errors.some((e) => e.toLowerCase().includes('name'))).toBe(true);
+  });
+
+  it('falla con name demasiado largo (> 120 caracteres)', async () => {
+    const errors = await runValidation(
+      updateUserRules,
+      { name: 'A'.repeat(121) },
+      { id: '5' },
+    );
+    expect(errors.some((e) => e.toLowerCase().includes('name'))).toBe(true);
+  });
+
   it('falla con id = 0 (no positivo)', async () => {
     const errors = await runValidation(
-      setActiveRules,
+      updateUserRules,
       { is_active: false },
       { id: '0' },
     );

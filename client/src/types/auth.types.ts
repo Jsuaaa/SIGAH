@@ -22,8 +22,8 @@ export interface LoginPayload {
   password: string
 }
 
-// NOTA: ajustar a la forma real de POST /auth/login cuando se integre.
+// POST /auth/login solo devuelve el token; los datos del usuario se obtienen
+// luego con GET /auth/me (ver stores/auth.ts).
 export interface LoginResponse {
   token: string
-  user: User
 }

@@ -36,6 +36,8 @@ const router = createRouter({
           path: 'families/new',
           name: 'family-new',
           component: () => import('@/pages/families/FamilyFormPage.vue'),
+          // HU-04 CA6: censo restringido a censadores y coordinación.
+          meta: { roles: ['ADMIN', 'COORDINADOR_LOGISTICA', 'CENSADOR'] },
         },
         {
           path: 'families/:id',
@@ -60,6 +62,13 @@ const router = createRouter({
           name: 'shelters',
           component: () => import('@/pages/shelters/SheltersListPage.vue'),
           meta: { roles: ['ADMIN', 'COORDINADOR_LOGISTICA'] },
+        },
+        // Gestión de usuarios (HU-01): solo ADMIN.
+        {
+          path: 'users',
+          name: 'users',
+          component: () => import('@/pages/users/UsersPage.vue'),
+          meta: { roles: ['ADMIN'] },
         },
         // Las demas rutas (entregas, mapa, etc.) se agregan aqui
         // a medida que se implementan las HU. Ver HistoriasDeUsuario.json.

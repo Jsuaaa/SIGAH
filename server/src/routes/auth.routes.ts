@@ -8,7 +8,7 @@ import {
   registerRules,
   changePasswordRules,
   resetPasswordRules,
-  setActiveRules,
+  updateUserRules,
   listUsersRules,
 } from '../validators/auth.validator';
 
@@ -211,7 +211,11 @@ router.post(
  * /auth/users/{id}:
  *   put:
  *     tags: [Auth]
- *     summary: Activar o desactivar usuario (solo ADMIN)
+ *     summary: Editar role, name y/o is_active de un usuario (solo ADMIN, HU-01 CA1)
+ *     description: >
+ *       Actualización parcial. Se puede enviar cualquier combinación de role, name
+ *       e is_active. Al menos uno debe estar presente. Email y contraseña NO se
+ *       pueden modificar por esta vía.
  *     parameters:
  *       - $ref: '#/components/parameters/IdParam'
  *     requestBody:
@@ -220,12 +224,19 @@ router.post(
  *         application/json:
  *           schema:
  *             type: object
- *             required: [is_active]
  *             properties:
- *               is_active: { type: boolean }
+ *               role:
+ *                 type: string
+ *                 enum: [ADMIN, CENSADOR, OPERADOR_ENTREGAS, COORDINADOR_LOGISTICA, FUNCIONARIO_CONTROL, REGISTRADOR_DONACIONES]
+ *               name:
+ *                 type: string
+ *                 minLength: 2
+ *                 maxLength: 120
+ *               is_active:
+ *                 type: boolean
  *     responses:
  *       200:
- *         description: Estado del usuario actualizado
+ *         description: Usuario actualizado
  *         content:
  *           application/json:
  *             schema:
@@ -242,8 +253,8 @@ router.put(
   '/users/:id',
   authenticate,
   authorize('ADMIN'),
-  validate(setActiveRules),
-  authController.setActive,
+  validate(updateUserRules),
+  authController.updateUser,
 );
 
 /**

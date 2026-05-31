@@ -19,9 +19,14 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   async function login(payload: LoginPayload) {
-    const res = await authApi.login(payload)
-    setSession(res.token, res.user)
-    return res.user
+    // /auth/login solo devuelve el token. Lo guardamos y luego /auth/me
+    // (autenticado por el interceptor) trae el usuario.
+    const { token: newToken } = await authApi.login(payload)
+    token.value = newToken
+    localStorage.setItem(TOKEN_KEY, newToken)
+    const me = await fetchMe()
+    if (!me) throw new Error('No se pudo cargar el perfil del usuario')
+    return me
   }
 
   async function fetchMe() {
