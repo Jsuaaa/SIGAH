@@ -64,9 +64,9 @@
   "resumen": {
     "total_hu": 31,
     "backend_completado": 31,
-    "frontend_hecho": 30,
+    "frontend_hecho": 31,
     "frontend_en_progreso": 0,
-    "frontend_pendiente": 1,
+    "frontend_pendiente": 0,
     "frontend_status_actualizado": "2026-05-31"
   },
   "historias": [
@@ -1194,7 +1194,7 @@
       "dependencias": ["HU-02"],
       "prioridad": "P2",
       "paso_plan": 16,
-      "status": { "backend": "completado", "frontend": "pendiente" }
+      "status": { "backend": "completado", "frontend": "hecho" }
     }
   ]
 }
