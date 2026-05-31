@@ -11,6 +11,7 @@ import {
   Home,
   Warehouse,
   Package,
+  Boxes,
   Truck,
   Activity,
   BarChart3,
@@ -56,6 +57,7 @@ const groups: NavGroup[] = [
     title: 'Logística',
     items: [
       { label: 'Bodegas', to: '/warehouses', icon: Warehouse, roles: ['ADMIN', 'COORDINADOR_LOGISTICA'] },
+      { label: 'Tipos de recurso', to: '/inventory/resource-types', icon: Boxes, roles: ['ADMIN', 'COORDINADOR_LOGISTICA', 'REGISTRADOR_DONACIONES'] },
       { label: 'Inventario', to: '/inventory/summary', icon: Package },
     ],
   },
