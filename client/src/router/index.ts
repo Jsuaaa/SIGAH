@@ -76,6 +76,13 @@ const router = createRouter({
           component: () => import('@/pages/warehouses/WarehouseDetailPage.vue'),
           meta: { roles: ['ADMIN', 'COORDINADOR_LOGISTICA'] },
         },
+        // Tipos de recurso (HU-14): catálogo gestionable por logística y donaciones.
+        {
+          path: 'inventory/resource-types',
+          name: 'resource-types',
+          component: () => import('@/pages/inventory/ResourceTypesPage.vue'),
+          meta: { roles: ['ADMIN', 'COORDINADOR_LOGISTICA', 'REGISTRADOR_DONACIONES'] },
+        },
         // Gestión de usuarios (HU-01): solo ADMIN.
         {
           path: 'users',
