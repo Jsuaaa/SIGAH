@@ -195,6 +195,42 @@ const router = createRouter({
           component: () => import('@/pages/health/HealthVectorsPage.vue'),
           meta: { roles: ['ADMIN', 'COORDINADOR_LOGISTICA'] },
         },
+        // Mapa con capas (HU-13/26): visible para todos los roles operativos.
+        {
+          path: 'map',
+          name: 'map',
+          component: () => import('@/pages/map/MapPage.vue'),
+        },
+        // Reportes y analítica (HU-28/29/30).
+        {
+          path: 'reports',
+          name: 'reports',
+          component: () => import('@/pages/reports/CoverageReportPage.vue'),
+        },
+        {
+          path: 'reports/unattended',
+          name: 'reports-unattended',
+          component: () => import('@/pages/reports/UnattendedFamiliesPage.vue'),
+        },
+        {
+          path: 'reports/traceability',
+          name: 'reports-traceability',
+          component: () => import('@/pages/reports/TraceabilityReportPage.vue'),
+          meta: { roles: ['ADMIN', 'COORDINADOR_LOGISTICA', 'FUNCIONARIO_CONTROL'] },
+        },
+        {
+          path: 'reports/zones-without-deliveries',
+          name: 'reports-zones-without-deliveries',
+          component: () => import('@/pages/reports/ZonesWithoutDeliveriesPage.vue'),
+          meta: { roles: ['ADMIN', 'COORDINADOR_LOGISTICA', 'FUNCIONARIO_CONTROL'] },
+        },
+        // Auditoría (HU-31): solo ADMIN/FUNCIONARIO_CONTROL (RNF-09, solo lectura).
+        {
+          path: 'audit',
+          name: 'audit',
+          component: () => import('@/pages/audit/AuditLogPage.vue'),
+          meta: { roles: ['ADMIN', 'FUNCIONARIO_CONTROL'] },
+        },
         // a medida que se implementan las HU. Ver HistoriasDeUsuario.json.
       ],
     },
