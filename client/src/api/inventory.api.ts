@@ -4,6 +4,7 @@ import type {
   InventoryListParams,
   InventoryRow,
   InventorySummaryRow,
+  InventoryAdjustPayload,
 } from '@/types/inventory.types'
 
 export const inventoryApi = {
@@ -22,6 +23,14 @@ export const inventoryApi = {
   summary() {
     return api
       .get<ApiItem<InventorySummaryRow[]>>('/inventory/summary')
+      .then((r) => r.data.data)
+  },
+
+  // HU-17: ajuste manual de una fila de inventario (PUT /inventory/:id/adjustment).
+  // El backend devuelve la fila enriquecida actualizada en { success, data }.
+  adjust(id: number, payload: InventoryAdjustPayload) {
+    return api
+      .put<ApiItem<InventoryRow>>(`/inventory/${id}/adjustment`, payload)
       .then((r) => r.data.data)
   },
 }
