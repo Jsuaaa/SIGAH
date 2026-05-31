@@ -140,7 +140,7 @@ export async function resetPassword(
 }
 
 // -----------------------------------------------------------------------
-// setActive — ADMIN: activar / desactivar cuenta
+// setActive — ADMIN: activar / desactivar cuenta (kept for backward compat)
 // -----------------------------------------------------------------------
 export async function setActive(
   userId: number,
@@ -148,6 +148,29 @@ export async function setActive(
   adminId: number,
 ): Promise<PublicUser> {
   await UserModel.setActive(userId, active, adminId);
+  const user = await UserModel.findById(userId);
+  if (!user) {
+    throw new AppError('User not found', 404);
+  }
+  return userView(user);
+}
+
+// -----------------------------------------------------------------------
+// updateUser — ADMIN: editar role, name y/o is_active (HU-01 CA1)
+// Al menos uno de los tres campos debe estar presente (validado en el validator).
+// -----------------------------------------------------------------------
+export async function updateUser(
+  userId: number,
+  input: { role?: Role; name?: string; is_active?: boolean },
+  adminId: number,
+): Promise<PublicUser> {
+  // RF-01: si se envía role, debe pertenecer al enum de 6 valores del PDF
+  if (input.role !== undefined && !ROLES.includes(input.role)) {
+    throw new AppError(`Invalid role: ${input.role}`, 422);
+  }
+
+  await UserModel.update(userId, input, adminId);
+
   const user = await UserModel.findById(userId);
   if (!user) {
     throw new AppError('User not found', 404);

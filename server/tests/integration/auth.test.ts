@@ -368,11 +368,12 @@ describe('POST /api/v1/auth/reset-password/:userId', () => {
 });
 
 // ---------------------------------------------------------------------------
-// Set active (ADMIN)
+// Update user (ADMIN) — HU-01 CA1
+// Cubre: editar is_active, role, name y combinaciones; body vacío → 422.
 // ---------------------------------------------------------------------------
 
 describe('PUT /api/v1/auth/users/:id', () => {
-  it('desactiva un usuario existente', async () => {
+  it('desactiva un usuario existente (is_active=false)', async () => {
     const userId = await createTestUser({ email: 'deactivate@sigah.test' });
 
     const res = await request(app)
@@ -384,7 +385,7 @@ describe('PUT /api/v1/auth/users/:id', () => {
     expect(res.body.data.is_active).toBe(false);
   });
 
-  it('activa un usuario previamente desactivado', async () => {
+  it('activa un usuario previamente desactivado (is_active=true)', async () => {
     const userId = await createTestUser({
       email: 'reactivate@sigah.test',
       is_active: false,
@@ -399,6 +400,77 @@ describe('PUT /api/v1/auth/users/:id', () => {
     expect(res.body.data.is_active).toBe(true);
   });
 
+  it('edita el rol de un usuario (role)', async () => {
+    const userId = await createTestUser({
+      email: 'changerole@sigah.test',
+      role: 'CENSADOR',
+    });
+
+    const res = await request(app)
+      .put(`/api/v1/auth/users/${userId}`)
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({ role: 'OPERADOR_ENTREGAS' });
+
+    expect(res.status).toBe(200);
+    expect(res.body.data.role).toBe('OPERADOR_ENTREGAS');
+  });
+
+  it('edita el nombre de un usuario (name)', async () => {
+    const userId = await createTestUser({
+      email: 'changename@sigah.test',
+      name: 'Nombre Original',
+    });
+
+    const res = await request(app)
+      .put(`/api/v1/auth/users/${userId}`)
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({ name: 'Nombre Actualizado' });
+
+    expect(res.status).toBe(200);
+    expect(res.body.data.name).toBe('Nombre Actualizado');
+  });
+
+  it('edita role, name e is_active en una sola llamada', async () => {
+    const userId = await createTestUser({
+      email: 'multiupdate@sigah.test',
+      role: 'CENSADOR',
+      name: 'Nombre Viejo',
+      is_active: true,
+    });
+
+    const res = await request(app)
+      .put(`/api/v1/auth/users/${userId}`)
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({ role: 'COORDINADOR_LOGISTICA', name: 'Nombre Nuevo', is_active: false });
+
+    expect(res.status).toBe(200);
+    expect(res.body.data.role).toBe('COORDINADOR_LOGISTICA');
+    expect(res.body.data.name).toBe('Nombre Nuevo');
+    expect(res.body.data.is_active).toBe(false);
+  });
+
+  it('devuelve 422 si el body está vacío (ningún campo editable)', async () => {
+    const userId = await createTestUser({ email: 'emptybody@sigah.test' });
+
+    const res = await request(app)
+      .put(`/api/v1/auth/users/${userId}`)
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({});
+
+    expect(res.status).toBe(422);
+  });
+
+  it('devuelve 422 con role inválido (RF-01)', async () => {
+    const userId = await createTestUser({ email: 'badrole@sigah.test' });
+
+    const res = await request(app)
+      .put(`/api/v1/auth/users/${userId}`)
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({ role: 'SUPERADMIN' });
+
+    expect(res.status).toBe(422);
+  });
+
   it('devuelve 404 si el usuario no existe', async () => {
     const res = await request(app)
       .put('/api/v1/auth/users/99999')
@@ -406,6 +478,22 @@ describe('PUT /api/v1/auth/users/:id', () => {
       .send({ is_active: false });
 
     expect(res.status).toBe(404);
+  });
+
+  it('devuelve 403 si un no-ADMIN intenta actualizar', async () => {
+    const userId = await createTestUser({ email: 'forbidden@sigah.test' });
+    const censadorToken = jwt.sign(
+      { id: 9999, email: 'cens@sigah.test', role: 'CENSADOR', name: 'Censador' },
+      JWT_SECRET,
+      { expiresIn: '1h' },
+    );
+
+    const res = await request(app)
+      .put(`/api/v1/auth/users/${userId}`)
+      .set('Authorization', `Bearer ${censadorToken}`)
+      .send({ is_active: false });
+
+    expect(res.status).toBe(403);
   });
 });
 

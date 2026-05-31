@@ -3,7 +3,7 @@
 // RF-01 (roles del PDF). Las reglas de negocio (lockout, is_active) se verifican
 // en el SP sp_auth_login, no aquí.
 
-import { body, param } from 'express-validator';
+import { body, param, CustomValidator } from 'express-validator';
 import { ROLES } from '../types/entities';
 import { MIN_PASSWORD_LENGTH } from '../config/constants';
 
@@ -52,16 +52,47 @@ export const resetPasswordRules = [
 ];
 
 // -----------------------------------------------------------------------
-// Set active (ADMIN → any user)
+// Update user (ADMIN → any user) — HU-01 CA1
+// Acepta role, name y/o is_active de forma parcial.
+// Al menos uno debe estar presente (→ 422 si el body está vacío).
+// No permite cambiar email ni contraseña por esta vía.
 // -----------------------------------------------------------------------
-export const setActiveRules = [
+
+// Validador personalizado: exige al menos uno de los tres campos editables.
+const atLeastOneField: CustomValidator = (_value, { req }) => {
+  const { role, name, is_active } = req.body as Record<string, unknown>;
+  if (role === undefined && name === undefined && is_active === undefined) {
+    throw new Error('At least one of role, name, or is_active must be provided');
+  }
+  return true;
+};
+
+export const updateUserRules = [
   param('id')
     .isInt({ min: 1 })
     .withMessage('id must be a positive integer'),
+  // role — opcional; si viene debe pertenecer al enum de 6 valores (RF-01)
+  body('role')
+    .optional()
+    .isIn(ROLES as unknown as string[])
+    .withMessage(`role must be one of: ${ROLES.join(', ')}`),
+  // name — opcional; si viene: string con 2..120 caracteres (HU-01 CA1)
+  body('name')
+    .optional()
+    .trim()
+    .isLength({ min: 2, max: 120 })
+    .withMessage('name must be between 2 and 120 characters'),
+  // is_active — opcional; si viene debe ser booleano
   body('is_active')
+    .optional()
     .isBoolean()
     .withMessage('is_active must be a boolean'),
+  // Al menos un campo debe estar presente
+  body().custom(atLeastOneField),
 ];
+
+// Alias para compatibilidad con imports anteriores
+export const setActiveRules = updateUserRules;
 
 // -----------------------------------------------------------------------
 // List users
