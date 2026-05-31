@@ -115,6 +115,19 @@ const router = createRouter({
           component: () => import('@/pages/donors/DonorsListPage.vue'),
           meta: { roles: ['ADMIN', 'REGISTRADOR_DONACIONES'] },
         },
+        // Donaciones (HU-19): registro con items y bodega destino.
+        {
+          path: 'donations',
+          name: 'donations',
+          component: () => import('@/pages/donations/DonationsListPage.vue'),
+          meta: { roles: ['ADMIN', 'REGISTRADOR_DONACIONES'] },
+        },
+        {
+          path: 'donations/new',
+          name: 'donation-new',
+          component: () => import('@/pages/donations/DonationFormPage.vue'),
+          meta: { roles: ['ADMIN', 'REGISTRADOR_DONACIONES'] },
+        },
         // Gestión de usuarios (HU-01): solo ADMIN.
         {
           path: 'users',
