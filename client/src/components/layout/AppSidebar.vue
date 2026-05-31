@@ -16,6 +16,8 @@ import {
   Truck,
   HandCoins,
   Activity,
+  ArrowLeftRight,
+  ClipboardList,
   BarChart3,
   Settings,
   ShieldCheck,
@@ -68,6 +70,7 @@ const groups: NavGroup[] = [
     title: 'Ayudas',
     items: [
       { label: 'Entregas', to: '/deliveries', icon: Truck },
+      { label: 'Planes', to: '/distribution-plans', icon: ClipboardList, roles: ['ADMIN', 'COORDINADOR_LOGISTICA'] },
       { label: 'Donantes', to: '/donors', icon: HandCoins, roles: ['ADMIN', 'REGISTRADOR_DONACIONES'] },
       { label: 'Donaciones', to: '/donations', icon: Package, roles: ['ADMIN', 'REGISTRADOR_DONACIONES'] },
     ],
@@ -75,6 +78,7 @@ const groups: NavGroup[] = [
   {
     title: 'Operaciones',
     items: [
+      { label: 'Traslados', to: '/relocations', icon: ArrowLeftRight, roles: ['ADMIN', 'CENSADOR', 'COORDINADOR_LOGISTICA'] },
       { label: 'Vectores', to: '/health/vectors', icon: Activity, roles: ['ADMIN', 'COORDINADOR_LOGISTICA'] },
     ],
   },

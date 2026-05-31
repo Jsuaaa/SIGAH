@@ -149,6 +149,52 @@ const router = createRouter({
           meta: { roles: ['ADMIN'] },
         },
         // Las demas rutas (entregas, donaciones, mapa, etc.) se agregan aqui
+        // Entregas (HU-22/23/12): individual con stepper, lote y bodega cercana.
+        {
+          path: 'deliveries',
+          name: 'deliveries',
+          component: () => import('@/pages/deliveries/DeliveriesListPage.vue'),
+          meta: { roles: ['ADMIN', 'OPERADOR_ENTREGAS', 'COORDINADOR_LOGISTICA'] },
+        },
+        {
+          path: 'deliveries/new',
+          name: 'delivery-new',
+          component: () => import('@/pages/deliveries/DeliveryFormPage.vue'),
+          meta: { roles: ['ADMIN', 'OPERADOR_ENTREGAS', 'COORDINADOR_LOGISTICA'] },
+        },
+        {
+          path: 'deliveries/batch',
+          name: 'delivery-batch',
+          component: () => import('@/pages/deliveries/BatchDeliveryPage.vue'),
+          meta: { roles: ['ADMIN', 'OPERADOR_ENTREGAS', 'COORDINADOR_LOGISTICA'] },
+        },
+        // Planes de distribución (HU-21).
+        {
+          path: 'distribution-plans',
+          name: 'distribution-plans',
+          component: () => import('@/pages/distribution-plans/DistributionPlansListPage.vue'),
+          meta: { roles: ['ADMIN', 'COORDINADOR_LOGISTICA'] },
+        },
+        {
+          path: 'distribution-plans/new',
+          name: 'distribution-plan-new',
+          component: () => import('@/pages/distribution-plans/DistributionPlanFormPage.vue'),
+          meta: { roles: ['ADMIN', 'COORDINADOR_LOGISTICA'] },
+        },
+        // Traslados entre refugios (HU-24).
+        {
+          path: 'relocations',
+          name: 'relocations',
+          component: () => import('@/pages/relocations/RelocationsPage.vue'),
+          meta: { roles: ['ADMIN', 'CENSADOR', 'COORDINADOR_LOGISTICA'] },
+        },
+        // Focos sanitarios / vectores (HU-25).
+        {
+          path: 'health/vectors',
+          name: 'health-vectors',
+          component: () => import('@/pages/health/HealthVectorsPage.vue'),
+          meta: { roles: ['ADMIN', 'COORDINADOR_LOGISTICA'] },
+        },
         // a medida que se implementan las HU. Ver HistoriasDeUsuario.json.
       ],
     },
