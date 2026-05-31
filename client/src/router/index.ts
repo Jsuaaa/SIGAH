@@ -26,7 +26,7 @@ const router = createRouter({
           name: 'dashboard',
           component: () => import('@/pages/dashboard/DashboardPage.vue'),
         },
-        // Familias (HU-06 lista; HU-04/HU-08 pendientes como stub).
+        // Familias (HU-04/05/06/07/08).
         {
           path: 'families',
           name: 'families',
@@ -76,8 +76,7 @@ const router = createRouter({
           component: () => import('@/pages/warehouses/WarehouseDetailPage.vue'),
           meta: { roles: ['ADMIN', 'COORDINADOR_LOGISTICA'] },
         },
-        // Inventario (HU-15): consulta de existencias por bodega/categoría. Lectura
-        // para logística, entregas y donaciones (además de ADMIN).
+        // Inventario (HU-15): consulta de existencias por bodega/categoría.
         {
           path: 'inventory/summary',
           name: 'inventory-summary',
@@ -93,6 +92,29 @@ const router = createRouter({
           component: () => import('@/pages/inventory/ResourceTypesPage.vue'),
           meta: { roles: ['ADMIN', 'COORDINADOR_LOGISTICA', 'REGISTRADOR_DONACIONES'] },
         },
+        // Alertas de stock (HU-16): ver alertas (lectura amplia) + editar umbrales
+        // (auto-restringido a ADMIN/COORDINADOR dentro de la página con RoleGate).
+        {
+          path: 'inventory/alerts',
+          name: 'inventory-alerts',
+          component: () => import('@/pages/inventory/InventoryAlertsPage.vue'),
+          meta: {
+            roles: ['ADMIN', 'COORDINADOR_LOGISTICA', 'OPERADOR_ENTREGAS', 'REGISTRADOR_DONACIONES'],
+          },
+        },
+        {
+          path: 'settings/alerts',
+          name: 'settings-alerts',
+          component: () => import('@/pages/inventory/InventoryAlertsPage.vue'),
+          meta: { roles: ['ADMIN', 'COORDINADOR_LOGISTICA'] },
+        },
+        // Donantes (HU-18): CRUD para ADMIN/REGISTRADOR_DONACIONES.
+        {
+          path: 'donors',
+          name: 'donors',
+          component: () => import('@/pages/donors/DonorsListPage.vue'),
+          meta: { roles: ['ADMIN', 'REGISTRADOR_DONACIONES'] },
+        },
         // Gestión de usuarios (HU-01): solo ADMIN.
         {
           path: 'users',
@@ -100,7 +122,7 @@ const router = createRouter({
           component: () => import('@/pages/users/UsersPage.vue'),
           meta: { roles: ['ADMIN'] },
         },
-        // Las demas rutas (entregas, mapa, etc.) se agregan aqui
+        // Las demas rutas (entregas, donaciones, mapa, etc.) se agregan aqui
         // a medida que se implementan las HU. Ver HistoriasDeUsuario.json.
       ],
     },
