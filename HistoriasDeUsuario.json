@@ -64,8 +64,8 @@
   "resumen": {
     "total_hu": 31,
     "backend_completado": 31,
-    "frontend_hecho": 8,
-    "frontend_en_progreso": 3,
+    "frontend_hecho": 9,
+    "frontend_en_progreso": 2,
     "frontend_pendiente": 20,
     "frontend_status_actualizado": "2026-05-31"
   },
@@ -176,7 +176,7 @@
       "dependencias": ["HU-02"],
       "prioridad": "P0",
       "paso_plan": 5,
-      "status": { "backend": "completado", "frontend": "en_progreso", "frontend_nota": "Solo placeholder (ChangePasswordPage.vue, ~10 lineas); falta el formulario actual/nueva/confirmar, validacion Zod min 8 y el guard obligatorio." }
+      "status": { "backend": "completado", "frontend": "hecho" }
     },
     {
       "id": "HU-04",
