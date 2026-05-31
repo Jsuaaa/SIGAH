@@ -64,8 +64,8 @@
   "resumen": {
     "total_hu": 31,
     "backend_completado": 31,
-    "frontend_hecho": 26,
-    "frontend_en_progreso": 1,
+    "frontend_hecho": 27,
+    "frontend_en_progreso": 0,
     "frontend_pendiente": 4,
     "frontend_status_actualizado": "2026-05-31"
   },
@@ -1055,7 +1055,7 @@
       "dependencias": ["HU-22", "HU-19", "HU-16"],
       "prioridad": "P2",
       "paso_plan": 15,
-      "status": { "backend": "completado", "frontend": "en_progreso", "frontend_nota": "Dashboard con KPIs de ejemplo hardcodeados; falta conectar /reports/dashboard y los graficos reales." }
+      "status": { "backend": "completado", "frontend": "hecho" }
     },
     {
       "id": "HU-28",
