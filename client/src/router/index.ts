@@ -76,6 +76,16 @@ const router = createRouter({
           component: () => import('@/pages/warehouses/WarehouseDetailPage.vue'),
           meta: { roles: ['ADMIN', 'COORDINADOR_LOGISTICA'] },
         },
+        // Inventario (HU-15): consulta de existencias por bodega/categoría. Lectura
+        // para logística, entregas y donaciones (además de ADMIN).
+        {
+          path: 'inventory/summary',
+          name: 'inventory-summary',
+          component: () => import('@/pages/inventory/InventorySummaryPage.vue'),
+          meta: {
+            roles: ['ADMIN', 'COORDINADOR_LOGISTICA', 'OPERADOR_ENTREGAS', 'REGISTRADOR_DONACIONES'],
+          },
+        },
         // Tipos de recurso (HU-14): catálogo gestionable por logística y donaciones.
         {
           path: 'inventory/resource-types',
