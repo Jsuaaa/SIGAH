@@ -1,17 +1,27 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { ArrowLeft, MapPin, AlertTriangle, PackageOpen } from '@lucide/vue'
+import { toast } from 'vue-sonner'
+import { ArrowLeft, MapPin, AlertTriangle, PackageOpen, SlidersHorizontal } from '@lucide/vue'
 import { useWarehouse, useWarehouseInventory } from '@/composables/useWarehouses'
+import { useInventoryMutations } from '@/composables/useInventory'
 import { useZones } from '@/composables/useZones'
 import { WAREHOUSE_STATUS_LABELS, RESOURCE_CATEGORY_LABELS } from '@/types/warehouse.types'
 import type { WarehouseInventoryRow } from '@/types/warehouse.types'
+import { INVENTORY_ADJUST_REASON_OPTIONS } from '@/types/inventory.types'
+import { inventoryAdjustSchema } from '@/schemas/inventory.schema'
+import { validate } from '@/utils/validation'
+import { apiErrorMessage, apiErrorStatus } from '@/utils/apiError'
 import PageHeader from '@/components/ui/PageHeader.vue'
 import AppButton from '@/components/ui/AppButton.vue'
 import ProgressBar from '@/components/ui/ProgressBar.vue'
 import DataTable from '@/components/ui/DataTable.vue'
 import EmptyState from '@/components/ui/EmptyState.vue'
 import SkeletonBlock from '@/components/ui/SkeletonBlock.vue'
+import BaseModal from '@/components/ui/BaseModal.vue'
+import FormField from '@/components/form/FormField.vue'
+import SelectField from '@/components/form/SelectField.vue'
+import RoleGate from '@/components/auth/RoleGate.vue'
 import MapPicker from '@/components/form/MapPicker.vue'
 
 const route = useRoute()
@@ -21,6 +31,7 @@ const id = computed(() => Number(route.params.id))
 const { data: warehouse, isLoading, isError } = useWarehouse(id)
 const { data: inventory } = useWarehouseInventory(id)
 const { data: zones } = useZones()
+const { adjust } = useInventoryMutations()
 
 const zoneName = computed(() => {
   if (!warehouse.value) return '—'
@@ -45,7 +56,83 @@ const inventoryCols = [
   { key: 'quantity', label: 'Cantidad', align: 'right' as const },
   { key: 'weight', label: 'Peso (kg)', align: 'right' as const, mono: true },
   { key: 'batch', label: 'Lote / vence' },
+  { key: 'actions', label: '', align: 'right' as const },
 ]
+
+// --- HU-17: ajuste de inventario con motivo ---------------------------------
+const adjustOpen = ref(false)
+const adjusting = ref<WarehouseInventoryRow | null>(null)
+const errors = ref<Record<string, string>>({})
+
+// reason se tipa como string (lo que emite SelectField); el valor se valida y se
+// estrecha al enum del backend vía inventoryAdjustSchema antes de enviarlo.
+const form = reactive({
+  new_quantity: '',
+  reason: 'CORRECCION' as string,
+  reason_note: '',
+})
+
+// Cantidad resultante prevista (CA3). Vacío/NaN => null para no previsualizar.
+const previewQuantity = computed<number | null>(() => {
+  if (form.new_quantity === '') return null
+  const n = Number(form.new_quantity)
+  return Number.isNaN(n) ? null : n
+})
+
+// Bloquea el guardado si la cantidad resultante quedaría negativa (CA3).
+const wouldBeNegative = computed(
+  () => previewQuantity.value !== null && previewQuantity.value < 0,
+)
+
+// El backend recibe un delta (+/-); aquí pedimos la nueva cantidad y derivamos el
+// delta. Si no cambia (delta 0) el backend lo rechaza, así que lo avisamos antes.
+const noChange = computed(
+  () =>
+    adjusting.value !== null &&
+    previewQuantity.value !== null &&
+    previewQuantity.value === adjusting.value.available_quantity,
+)
+
+function openAdjust(row: WarehouseInventoryRow) {
+  adjusting.value = row
+  form.new_quantity = String(row.available_quantity)
+  form.reason = 'CORRECCION'
+  form.reason_note = ''
+  errors.value = {}
+  adjustOpen.value = true
+}
+
+async function submitAdjust() {
+  if (!adjusting.value) return
+
+  const res = validate(inventoryAdjustSchema, { ...form })
+  errors.value = res.ok ? {} : { ...res.errors }
+  if (!res.ok) return
+
+  // Guardarraíl de UI (CA3): el backend también rechaza con SH422.
+  if (wouldBeNegative.value) {
+    errors.value = { new_quantity: 'La cantidad no puede ser negativa' }
+    return
+  }
+  const delta = res.data.new_quantity - adjusting.value.available_quantity
+  if (delta === 0) {
+    errors.value = { new_quantity: 'La nueva cantidad debe ser distinta de la actual' }
+    return
+  }
+
+  try {
+    await adjust.mutateAsync({
+      id: adjusting.value.id,
+      payload: { delta, reason: res.data.reason, reason_note: res.data.reason_note },
+    })
+    toast.success('Inventario ajustado')
+    adjustOpen.value = false
+  } catch (e) {
+    // SH422: stock negativo o capacidad superada (RN-03). Mostramos el mensaje real.
+    if (apiErrorStatus(e) === 422) errors.value = { _form: apiErrorMessage(e) }
+    toast.error(apiErrorMessage(e))
+  }
+}
 </script>
 
 <template>
@@ -162,6 +249,16 @@ const inventoryCols = [
             </div>
             <span v-else class="text-neutral-400">—</span>
           </template>
+          <!-- HU-17: ajuste por fila (solo ADMIN / COORDINADOR_LOGISTICA) -->
+          <template #actions="{ row }">
+            <RoleGate :roles="['ADMIN', 'COORDINADOR_LOGISTICA']">
+              <div class="flex justify-end">
+                <AppButton variant="ghost" size="sm" @click="openAdjust(asRow(row))">
+                  <SlidersHorizontal /> Ajustar
+                </AppButton>
+              </div>
+            </RoleGate>
+          </template>
           <template #empty>
             <EmptyState title="Sin inventario" message="Esta bodega aún no tiene recursos registrados.">
               <template #icon><PackageOpen /></template>
@@ -170,5 +267,92 @@ const inventoryCols = [
         </DataTable>
       </div>
     </template>
+
+    <!-- HU-17: modal de ajuste de inventario con motivo -->
+    <BaseModal
+      :open="adjustOpen"
+      title="Ajustar inventario"
+      max-width="max-w-[520px]"
+      @close="adjustOpen = false"
+    >
+      <form class="space-y-4" @submit.prevent="submitAdjust">
+        <p v-if="adjusting" class="text-sm text-neutral-500">
+          <span class="font-semibold text-neutral-800">{{ adjusting.resource.name }}</span>
+          · Cantidad actual:
+          {{ adjusting.available_quantity.toLocaleString('es-CO') }}
+          {{ adjusting.resource.unit_of_measure }}
+        </p>
+
+        <SelectField
+          v-model="form.reason"
+          label="Motivo"
+          required
+          :options="INVENTORY_ADJUST_REASON_OPTIONS"
+          :error="errors.reason"
+          input-id="adjust-reason"
+        />
+
+        <FormField
+          label="Nota del motivo"
+          required
+          :error="errors.reason_note"
+          hint="Explica brevemente el ajuste (entre 3 y 500 caracteres)."
+          input-id="adjust-note"
+        >
+          <textarea
+            id="adjust-note"
+            v-model="form.reason_note"
+            class="control"
+            rows="3"
+            placeholder="Describe el motivo del ajuste"
+          ></textarea>
+        </FormField>
+
+        <FormField
+          label="Nueva cantidad"
+          required
+          :error="errors.new_quantity"
+          input-id="adjust-quantity"
+        >
+          <input
+            id="adjust-quantity"
+            v-model="form.new_quantity"
+            type="number"
+            min="0"
+            step="1"
+            class="control"
+          />
+        </FormField>
+
+        <!-- CA3: stock resultante previsto -->
+        <p
+          v-if="previewQuantity !== null"
+          :class="['text-sm', wouldBeNegative ? 'text-danger' : 'text-neutral-600']"
+        >
+          Stock resultante previsto:
+          <span class="font-semibold">
+            {{ previewQuantity.toLocaleString('es-CO') }} {{ adjusting?.resource.unit_of_measure }}
+          </span>
+          <span v-if="wouldBeNegative"> — no puede ser negativo</span>
+        </p>
+        <p v-else-if="noChange" class="text-sm text-warning">
+          La nueva cantidad es igual a la actual; cámbiala para registrar un ajuste.
+        </p>
+
+        <p v-if="errors._form" class="flex items-center gap-1.5 text-sm text-danger">
+          {{ errors._form }}
+        </p>
+      </form>
+
+      <template #footer>
+        <AppButton variant="ghost" @click="adjustOpen = false">Cancelar</AppButton>
+        <AppButton
+          :disabled="adjust.isPending.value || wouldBeNegative || noChange"
+          @click="submitAdjust"
+        >
+          {{ adjust.isPending.value ? 'Guardando…' : 'Guardar ajuste' }}
+        </AppButton>
+      </template>
+    </BaseModal>
   </section>
 </template>

@@ -52,3 +52,31 @@ export interface InventorySummaryRow {
   total_quantity: number | string
   total_weight_kg: number | string
 }
+
+// HU-17: ajuste de inventario con motivo. El enum de motivos es el del backend
+// (adjustment_reason, server/src/types/entities.ts → 'MERMA'|'DANO'|'DEVOLUCION'|
+// 'CORRECCION', en español por requisito del PDF). Las etiquetas son para la UI.
+export type InventoryAdjustReason = 'MERMA' | 'DANO' | 'DEVOLUCION' | 'CORRECCION'
+
+export const INVENTORY_ADJUST_REASON_OPTIONS: { value: InventoryAdjustReason; label: string }[] = [
+  { value: 'MERMA', label: 'Merma' },
+  { value: 'DANO', label: 'Daño' },
+  { value: 'DEVOLUCION', label: 'Devolución' },
+  { value: 'CORRECCION', label: 'Corrección' },
+]
+
+export const INVENTORY_ADJUST_REASON_LABELS: Record<InventoryAdjustReason, string> = {
+  MERMA: 'Merma',
+  DANO: 'Daño',
+  DEVOLUCION: 'Devolución',
+  CORRECCION: 'Corrección',
+}
+
+// Cuerpo real de PUT /inventory/:id/adjustment (adjustInventoryRules del backend):
+// delta es un entero distinto de cero (positivo suma, negativo resta); reason y
+// reason_note (3-500) son obligatorios. El backend rechaza stock negativo (SH422).
+export interface InventoryAdjustPayload {
+  delta: number
+  reason: InventoryAdjustReason
+  reason_note: string
+}
