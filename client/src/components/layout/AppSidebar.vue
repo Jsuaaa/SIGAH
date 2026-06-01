@@ -8,22 +8,13 @@ import {
   LayoutDashboard,
   Map,
   Users,
-  UserSearch,
   Home,
   Warehouse,
   Package,
-  Boxes,
-  Bell,
   Truck,
-  HeartHandshake,
-  Gift,
-  ListOrdered,
-  ClipboardList,
   Activity,
-  MoveRight,
   BarChart3,
   Settings,
-  SlidersHorizontal,
   ShieldCheck,
 } from '@lucide/vue'
 
@@ -57,7 +48,6 @@ const groups: NavGroup[] = [
     title: 'Censo',
     items: [
       { label: 'Familias', to: '/families', icon: Users },
-      { label: 'Buscar Personas', to: '/persons/search', icon: UserSearch },
       { label: 'Zonas', to: '/zones', icon: Home, roles: ['ADMIN', 'COORDINADOR_LOGISTICA'] },
       { label: 'Refugios', to: '/shelters', icon: Home, roles: ['ADMIN', 'COORDINADOR_LOGISTICA'] },
     ],
@@ -67,25 +57,19 @@ const groups: NavGroup[] = [
     items: [
       { label: 'Bodegas', to: '/warehouses', icon: Warehouse, roles: ['ADMIN', 'COORDINADOR_LOGISTICA'] },
       { label: 'Inventario', to: '/inventory/summary', icon: Package },
-      { label: 'Tipos de Recurso', to: '/inventory/resource-types', icon: Boxes, roles: ['ADMIN', 'COORDINADOR_LOGISTICA'] },
-      { label: 'Alertas', to: '/inventory/alerts', icon: Bell },
     ],
   },
   {
     title: 'Ayudas',
     items: [
       { label: 'Entregas', to: '/deliveries', icon: Truck },
-      { label: 'Ranking', to: '/deliveries/ranking', icon: ListOrdered },
-      { label: 'Planes', to: '/distribution-plans', icon: ClipboardList, roles: ['ADMIN', 'COORDINADOR_LOGISTICA'] },
-      { label: 'Donantes', to: '/donors', icon: HeartHandshake, roles: ['ADMIN', 'COORDINADOR_LOGISTICA', 'REGISTRADOR_DONACIONES', 'FUNCIONARIO_CONTROL'] },
-      { label: 'Donaciones', to: '/donations', icon: Gift, roles: ['ADMIN', 'COORDINADOR_LOGISTICA', 'REGISTRADOR_DONACIONES', 'FUNCIONARIO_CONTROL'] },
+      { label: 'Donaciones', to: '/donations', icon: Package, roles: ['ADMIN', 'REGISTRADOR_DONACIONES'] },
     ],
   },
   {
     title: 'Operaciones',
     items: [
       { label: 'Vectores', to: '/health/vectors', icon: Activity, roles: ['ADMIN', 'COORDINADOR_LOGISTICA'] },
-      { label: 'Traslados', to: '/relocations', icon: MoveRight, roles: ['ADMIN', 'COORDINADOR_LOGISTICA'] },
     ],
   },
   {
@@ -96,7 +80,6 @@ const groups: NavGroup[] = [
     title: 'Configuración',
     items: [
       { label: 'Puntaje', to: '/settings/scoring', icon: Settings, roles: ['ADMIN', 'COORDINADOR_LOGISTICA'] },
-      { label: 'Umbrales', to: '/settings/alerts', icon: SlidersHorizontal, roles: ['ADMIN', 'COORDINADOR_LOGISTICA'] },
     ],
   },
   {

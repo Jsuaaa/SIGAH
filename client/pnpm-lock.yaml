@@ -38,9 +38,6 @@ importers:
       date-fns:
         specifier: ^4.1.0
         version: 4.1.0
-      dexie:
-        specifier: ^4.4.3
-        version: 4.4.3
       leaflet:
         specifier: ^1.9.4
         version: 1.9.4
@@ -802,9 +799,6 @@ packages:
   detect-libc@2.1.2:
     resolution: {integrity: sha512-Btj2BOOO83o3WyH59e8MgXsxEQVcarkUOpEYrubB0urwnN10yQ364rsiByU11nZlqWYZm05i/of7io4mzihBtQ==}
     engines: {node: '>=8'}
-
-  dexie@4.4.3:
-    resolution: {integrity: sha512-N+3IGQ3HPlyO2YAkntGAwitm42BpBGV86MttzUMiRzWLa4NGh0pltVRcUVF4ybL/OnXjCrr9k7SDPIKkFYP2Lg==}
 
   dunder-proto@1.0.1:
     resolution: {integrity: sha512-KIN/nDJBQRcXw0MLVhZE9iQHmG68qAVIBg9CqmUYjmQIhgij9U5MFvrqkUL5FbtyyzZuOeOt0zdeRe4UY7ct+A==}
@@ -2249,8 +2243,6 @@ snapshots:
   delayed-stream@1.0.0: {}
 
   detect-libc@2.1.2: {}
-
-  dexie@4.4.3: {}
 
   dunder-proto@1.0.1:
     dependencies:
