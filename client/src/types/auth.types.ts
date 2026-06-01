@@ -7,7 +7,6 @@ export type Role =
   | 'FUNCIONARIO_CONTROL'
   | 'REGISTRADOR_DONACIONES'
 
-// Perfil devuelto por GET /auth/me (briefUserView del backend).
 export interface User {
   id: number
   email: string
@@ -15,8 +14,6 @@ export interface User {
   role: Role
   is_active: boolean
   password_must_change: boolean
-  created_at?: string
-  updated_at?: string
   last_login_at?: string | null
 }
 
@@ -25,8 +22,8 @@ export interface LoginPayload {
   password: string
 }
 
-// POST /auth/login devuelve SOLO el token (sin user). El perfil se obtiene
-// luego con GET /auth/me. (Confirmado en server/src/services/auth.service.ts.)
+// NOTA: ajustar a la forma real de POST /auth/login cuando se integre.
 export interface LoginResponse {
   token: string
+  user: User
 }

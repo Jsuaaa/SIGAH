@@ -20,7 +20,7 @@ async function onSubmit() {
   try {
     const user = await auth.login({ email: email.value, password: password.value })
     const redirect = (route.query.redirect as string) || '/dashboard'
-    router.push(user?.password_must_change ? '/change-password' : redirect)
+    router.push(user.password_must_change ? '/change-password' : redirect)
   } catch {
     // TODO: mostrar cuenta regresiva de lockout usando locked_until (HU-02 CA5).
     toast.error('Credenciales inválidas o cuenta bloqueada')
